@@ -7,20 +7,47 @@ const gpuName = s => (s || "").split(" · ")[0].replace(/ \(\d+ GB\)/, "");
 const VERDICT = { "improves the best known value": ["improves", "below best known"],
                   "equals the best known value": ["equals", "best known"],
                   "above the best known value": ["above", "above best known"] };
+// (rows with a reference other than a best known value, r.ref: our scaling set against OptalCP's run)
+const verdict = r => { const v = VERDICT[r.verdict]; if (!v) return ["", "–"];
+  return r.ref ? [v[0], { improves: "below OptalCP", equals: "equal to OptalCP", above: "above OptalCP" }[v[0]]] : v; };
+const PROBLEM = new URLSearchParams(location.search).get("p") === "fjsp" ? "fjsp" : "jsp";
+const LEAD = {
+  jsp: `For every instance, the best schedule our GPU solvers have found. Each one is checked independently against
+  ScheduleOpt's instance file (job order, machine capacity, makespan recomputed from the machine sequences) and compared with
+  ScheduleOpt's best known bounds. Click an instance for its Gantt chart. Every instance can be downloaded as text
+  (first line: jobs and machines; then one line per job with its operations as machine and duration pairs in route
+  order, machines numbered from 0), every schedule in ScheduleOpt's solution format.`,
+  fjsp: `For every instance, the best schedule our GPU solver has found; every operation runs on one machine chosen among
+  its options. Each schedule is checked independently against the instance file (the machine is one of the operation's
+  options, job order, machine capacity, makespan recomputed from the machine sequences) and compared with ScheduleOpt's
+  best known bounds. Our own scaling set (SFJS) has no literature values; its schedules are compared with a run of
+  OptalCP on the same instance. Click an instance for its Gantt chart. Instances download in the .fjs format (first
+  line: jobs, machines; then per job its number of operations and, per operation, the number of options followed by
+  machine and duration pairs, machines numbered from 1); schedules as JSON with the machine and the start time of
+  every operation, job by job.` };
 
 // ---------------------------------------------------------------- index page
 // (v: the build stamp, appended to every data URL: GitHub Pages lets browsers cache files for 10 minutes, and old data
 // with a new script showed empty columns)
 async function siteIndex(v) {
-  const data = await (await fetch(`data/index.json?v=${v}`)).json();
+  const F = PROBLEM === "fjsp";
+  document.getElementById(F ? "tab-fjsp" : "tab-jsp").classList.add("on");
+  document.getElementById("h1").textContent = F ? "schweminOPT best flexible job shop schedules" : "schweminOPT best job shop schedules";
+  document.getElementById("lead").textContent = LEAD[PROBLEM].replace(/\s+/g, " ");
+  const data = await (await fetch(`data/${F ? "fjsp_index" : "index"}.json?v=${v}`)).json();
   const rows = data.rows;
-  const cnt = k => rows.filter(r => VERDICT[r.verdict] && VERDICT[r.verdict][0] === k).length;
+  const lit = rows.filter(r => !r.ref && r.ub != null), own = rows.filter(r => !(!r.ref && r.ub != null));
+  const cnt = k => lit.filter(r => VERDICT[r.verdict] && VERDICT[r.verdict][0] === k).length;
   document.getElementById("tiles").innerHTML = [["instances", rows.length], ["below best known", cnt("improves")],
     ["equal to best known", cnt("equals")], ["above best known", cnt("above")]]
+    .concat(own.length ? [["scaling set schedules", own.length]] : [])
     .map(([k, val]) => `<div class="tile"><div class="k">${k}</div><div class="v">${val}</div></div>`).join("");
   // one card per family, stacked; the search and the result filter apply to all of them, each card sorts on its own
   const ORDER = ["Fisher, Thompson", "Lawrence", "Adams, Balas, Zawack", "Applegate, Cook", "Storer, Wu, Vaccari",
-                 "Yamada, Nakano", "Taillard", "Demirkol", "Da Col & Teppan (tai)"];
+                 "Yamada, Nakano", "Taillard", "Demirkol", "Da Col & Teppan (tai)",
+                 "Brandimarte", "Chambers, Barnes", "Dauzère-Pérès, Paulli", "Behnke, Geiger", "Fattahi, Mehrabad, Jolai",
+                 "Kacem, Hammadi, Borne", "Hurink, Jurisch, Thole · sdata", "Hurink, Jurisch, Thole · edata",
+                 "Hurink, Jurisch, Thole · rdata", "Hurink, Jurisch, Thole · vdata", "SFJS · edata", "SFJS · rdata", "SFJS · vdata"];
   const fams = [...new Set(rows.map(r => r.family))]
     .sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
   document.getElementById("foot").insertAdjacentHTML("beforeend", ` Generated ${esc(data.generated)}.`);
@@ -31,7 +58,7 @@ async function siteIndex(v) {
   const box = document.getElementById("fams");
   const cards = fams.map((f, i) => {
     const mine = rows.filter(r => r.family === f);
-    const c = k => mine.filter(r => (VERDICT[r.verdict] || [])[0] === k).length;
+    const c = k => mine.filter(r => verdict(r)[0] === k).length;
     const parts = [["improves", "below"], ["equals", "equal"], ["above", "above"]].filter(([k]) => c(k))
       .map(([k, t]) => `<span class="${k}">${c(k)} ${t}</span>`).join(" · ");
     box.insertAdjacentHTML("beforeend", `<section class="card fam" id="fam${i}">
@@ -42,25 +69,28 @@ async function siteIndex(v) {
     return { el, mine, sort: null, dir: 1 };
   });
   const row = r => {
-    const [cls, label] = VERDICT[r.verdict] || ["", "–"];
-    const name = r.gantt ? `<a href="schedule.html?i=${encodeURIComponent(r.instance)}">${esc(r.instance)}</a>` : esc(r.instance);
+    const [cls, label] = verdict(r);
+    const name = r.gantt ? `<a href="schedule.html?i=${encodeURIComponent(r.instance)}${F ? "&p=fjsp" : ""}">${esc(r.instance)}</a>` : esc(r.instance);
+    const iurl = r.instance_url || `instances/${encodeURIComponent(r.instance)}.txt`;
+    const surl = r.solution_url || `solutions/${encodeURIComponent(r.instance)}.json`;
+    const refl = r.ref ? `<span title="${esc(r.ref)}">OptalCP</span>` : "best known";
     const gap = r.gap == null ? "–" : (r.gap > 0 ? "+" : "") + r.gap.toFixed(2) + " %";
     const tt = r.time_exact ? "when the run first reached this makespan"
                             : "first checkpoint of the run that shows it (the exact time was not recorded)";
-    return `<tr><td>${name}<div class="sub">${r.jobs} × ${r.machines}</div></td>`
-      + `<td class="n">${num(r.makespan)}<div class="sub">best known ${num(r.ub)} · LB ${num(r.lb)}</div></td>`
+    return `<tr><td>${name}<div class="sub">${r.jobs} × ${r.machines}${F ? ` · ${num(r.operations)} ops` : ""}</div></td>`
+      + `<td class="n">${num(r.makespan)}<div class="sub">${refl} ${num(r.ub)} · LB ${num(r.lb)}</div></td>`
       + `<td><span class="chip ${cls}">${label}</span><div class="sub">gap ${gap}</div></td>`
       + `<td class="n" title="${tt}">${secs(r.time_to_best, r.time_exact)}<div class="sub">of ${secs(r.run_seconds, true)}</div></td>`
       + `<td title="${esc(r.system)}&#10;${esc(r.solver)}">${esc(gpuName(r.system))}<div class="sub">${esc(r.solver_short || r.solver)}</div></td>`
       + `<td>${esc(r.date)}</td>`
-      + `<td class="dl"><a href="instances/${encodeURIComponent(r.instance)}.txt" download title="the instance: jobs and machines, then per job machine / duration pairs (machines from 0)">instance</a>`
-      + `<div class="sub"><a href="solutions/${encodeURIComponent(r.instance)}.json" download title="schedule in ScheduleOpt's format">schedule</a></div></td></tr>`;
+      + `<td class="dl"><a href="${esc(iurl)}" download title="${F ? "the instance in the .fjs format (machines from 1)" : "the instance: jobs and machines, then per job machine / duration pairs (machines from 0)"}">instance</a>`
+      + `<div class="sub"><a href="${esc(surl)}" download title="${F ? "machine (from 1) and start time of every operation, job by job" : "schedule in ScheduleOpt's format"}">schedule</a></div></td></tr>`;
   };
   const fill = () => {
     const q = st.q.toLowerCase();
     let shown = 0;
     for (const c of cards) {
-      let list = c.mine.filter(r => (!q || r.instance.toLowerCase().includes(q)) && (!st.ver || (VERDICT[r.verdict] || [])[0] === st.ver));
+      let list = c.mine.filter(r => (!q || r.instance.toLowerCase().includes(q)) && (!st.ver || verdict(r)[0] === st.ver));
       if (c.sort) {
         const key = r => r[c.sort];
         list = list.slice().sort((a, b) => {
@@ -76,7 +106,7 @@ async function siteIndex(v) {
     }
     document.getElementById("count").textContent = `${shown} of ${rows.length}`;
   };
-  siteSjs(v);
+  if (F) siteSfjs(v, rows); else siteSjs(v);
   document.getElementById("q").addEventListener("input", e => { st.q = e.target.value; fill(); });
   document.getElementById("ver").addEventListener("change", e => { st.ver = e.target.value; fill(); });
   for (const c of cards) c.el.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
@@ -114,23 +144,57 @@ async function siteSjs(v) {
   }
 }
 
+// ---------------------------------------------------------------- SFJS: our flexible scaling set (downloads)
+async function siteSfjs(v, rows) {
+  let d;
+  try { d = await (await fetch(`data/sfjs.json?v=${v}`)).json(); } catch (e) { return; }
+  const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+  const have = new Set(rows.map(r => r.instance));
+  const box = document.getElementById("sjs");
+  box.innerHTML = `<section class="card"><div class="fhead"><h2>schweminOPT Flexible Job Shop Scaling set (SFJS, 2026)</h2>`
+    + `<span class="fsum">${d.instances} instances · ${d.files.filter(f => have.has(f.name)).length} with a schedule above</span></div>`
+    + `<p class="lead">Our own instances for measuring solvers across sizes, shapes and degrees of machine flexibility: `
+    + `instances of our job shop scaling set (SJS, see the job shop tab) with machine options per operation in the manner of `
+    + `Hurink, Jurisch and Thole's edata, rdata and vdata sets, from 2,500 to 490,000 operations. The .fjs format as above `
+    + `(gzip-compressed from 50,000 operations).</p><p class="links"><a href="sfjs/sfjs_seeds.csv" download>seeds</a> · `
+    + `<a href="sfjs/checksums.sha256" download>checksums</a> · <a href="sfjs/README.md">README</a></p></section>`;
+  const KIND = { edata: "1.15 machines per operation on average", rdata: "2 machines per operation on average",
+                 vdata: "half the machines per operation on average" };
+  for (const k of ["edata", "rdata", "vdata"]) {
+    const files = d.files.filter(f => f.kind === k);
+    if (!files.length) continue;
+    const body = files.map(f =>
+      `<tr><td>${esc(f.name)}<div class="sub">${f.jobs} × ${f.machines}${have.has(f.name) ? " · schedule above" : ""}</div></td>`
+      + `<td class="n">${num(f.operations)}<div class="sub">${num(f.options)} options</div></td>`
+      + `<td class="n">${f.seed}<div class="sub">${esc(f.base)}</div></td>`
+      + `<td class="dl"><a href="${esc(f.file)}" download>instance</a><div class="sub">${mb(f.bytes)}</div></td></tr>`).join("");
+    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>SFJS · ${k}</h2>`
+      + `<span class="fsum">${files.length} instances · ${KIND[k]}</span></div>`
+      + `<div class="tbox"><table class="sjst"><thead><tr><th>instance</th><th class="n">operations</th>`
+      + `<th class="n">option seed<div class="sub">base instance</div></th><th>download</th></tr></thead>`
+      + `<tbody>${body}</tbody></table></div></section>`);
+  }
+}
+
 // ---------------------------------------------------------------- schedule page (Gantt chart)
 async function siteSchedule(v) {
   const inst = new URLSearchParams(location.search).get("i") || "";
   let d;
-  try { d = await (await fetch(`data/${encodeURIComponent(inst)}.json?v=${v}`)).json(); }
+  const F = PROBLEM === "fjsp";
+  document.querySelector("header a").href = F ? "./?p=fjsp" : "./";
+  try { d = await (await fetch(`data/${F ? "fjsp/" : ""}${encodeURIComponent(inst)}.json?v=${v}`)).json(); }
   catch (e) { document.getElementById("title").textContent = `no schedule for "${inst}"`; return; }
   document.title = `${d.instance} Schedule`;
-  const [cls, label] = VERDICT[d.verdict] || ["", ""];
+  const [cls, label] = d.verdict ? verdict(d) : ["", ""];
   document.getElementById("title").innerHTML = `${esc(d.instance)} <span class="chip ${cls}" style="font-size:.8rem;vertical-align:middle">${label}</span>`;
   document.getElementById("sub").textContent = `${d.solver}. System: ${d.system}.${d.date ? " Run of " + d.date + "." : ""}`;
   const crit = d.ops.reduce((n, o) => n + o[5], 0);
-  document.getElementById("info").innerHTML = [`makespan ${num(d.makespan)}`, `best known ${num(d.ub)}`, `lower bound ${num(d.lb)}`,
+  document.getElementById("info").innerHTML = [`makespan ${num(d.makespan)}`, `${d.ref ? d.ref : "best known"} ${num(d.ub)}`, `lower bound ${num(d.lb)}`,
     d.gap == null ? "" : `gap ${(d.gap > 0 ? "+" : "") + d.gap.toFixed(2)} %`,
     `time to best ${secs(d.time_to_best, d.time_exact)}`, `run ${secs(d.run_seconds, true)}`, `${d.jobs} jobs × ${d.machines} machines`,
-    `${num(d.operations)} operations`, `${num(crit)} critical`,
-    `<a href="instances/${encodeURIComponent(d.instance)}.txt" download>instance (.txt)</a>`,
-    `<a href="solutions/${encodeURIComponent(d.instance)}.json" download>schedule (ScheduleOpt format)</a>`]
+    `${num(d.operations)} operations`, d.options ? `${num(d.options)} machine options` : "", `${num(crit)} critical`,
+    `<a href="${esc(d.instance_url || `instances/${encodeURIComponent(d.instance)}.txt`)}" download>instance (${F ? ".fjs" : ".txt"})</a>`,
+    `<a href="${esc(d.solution_url || `solutions/${encodeURIComponent(d.instance)}.json`)}" download>schedule (${F ? "machine and start per operation" : "ScheduleOpt format"})</a>`]
     .filter(Boolean).map(x => `<span>${x.startsWith("<a") ? x : esc(x)}</span>`).join("");
   const G = { job: null, bars: [] };
   const cv = document.getElementById("gc"), box = document.getElementById("gbox"), tip = document.getElementById("tip");
@@ -150,7 +214,7 @@ async function siteSchedule(v) {
       ctx.textAlign = "center"; ctx.fillText(t.toLocaleString("en-US"), x(t), 11);
     }
     ctx.textAlign = "right";
-    for (let m = 0, every = Math.ceil(12 / rowH); m < d.machines; m += every) ctx.fillText("M" + m, left - 6, top + m * rowH + rowH / 2);
+    for (let m = 0, every = Math.ceil(12 / rowH); m < d.machines; m += every) ctx.fillText("M" + (m + (F ? 1 : 0)), left - 6, top + m * rowH + rowH / 2);
     G.bars = [];
     const pad = rowH > 10 ? 2 : rowH > 6 ? 1 : 0;
     for (const o of d.ops) {
@@ -175,7 +239,7 @@ async function siteSchedule(v) {
   cv.addEventListener("mousemove", e => {
     const o = at(e); if (!o) { tip.hidden = true; return; }
     const [j, k, m, s, du, c] = o;
-    tip.textContent = `job ${j}, operation ${k}\nmachine ${m}\n${s} – ${s + du} (duration ${du})${c ? "\ncritical" : ""}`;
+    tip.textContent = `job ${j}, operation ${k}\nmachine ${m + (F ? 1 : 0)}\n${s} – ${s + du} (duration ${du})${c ? "\ncritical" : ""}`;
     tip.hidden = false; tip.style.left = (e.clientX + 14) + "px"; tip.style.top = (e.clientY + 12) + "px";
   });
   cv.addEventListener("mouseleave", () => { tip.hidden = true; });

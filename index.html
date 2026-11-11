@@ -1,17 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>schweminOPT Best Schedules</title>
-<meta name="description" content="Best job shop schedules found by the schweminOPT GPU solvers, checked against ScheduleOpt's instances and bounds.">
-<link rel="stylesheet" href="site.css?v=20261108231032"></head>
+<meta name="description" content="Best job shop and flexible job shop schedules found by the schweminOPT GPU solvers, checked against ScheduleOpt's instances and bounds.">
+<link rel="stylesheet" href="site.css?v=20261111194446"></head>
 <body><div class="wrap">
 <header>
-  <h1>schweminOPT best job shop schedules</h1>
+  <h1 id="h1">schweminOPT best schedules</h1>
   <p class="links"><a href="#contact">Contact</a> · <a href="https://github.com/Marci172">GitHub</a></p>
-  <p class="lead">For every instance, the best schedule our GPU solvers have found. Each one is checked independently against
-  ScheduleOpt's instance file (job order, machine capacity, makespan recomputed from the machine sequences) and compared with
-  ScheduleOpt's best known bounds. Click an instance for its Gantt chart. Every instance can be downloaded as text
-  (first line: jobs and machines; then one line per job with its operations as machine and duration pairs in route
-  order, machines numbered from 0), every schedule in ScheduleOpt's solution format.</p>
+  <nav class="tabs" aria-label="problem"><a id="tab-jsp" href="./?p=jsp">Job shop</a><a id="tab-fjsp" href="./?p=fjsp">Flexible job shop</a></nav>
+  <p class="lead" id="lead"></p>
 </header>
 <section class="tiles" id="tiles"></section>
 <section class="card tools">
@@ -30,10 +27,10 @@
     · <a href="https://github.com/Marci172">GitHub</a></p>
 </section>
 <footer id="foot">Best known values: <a href="https://github.com/ScheduleOpt/benchmarks">ScheduleOpt benchmarks</a> (CC BY-SA 4.0).
-  Gap = (our makespan − best known) / best known.</footer>
+  Gap = (our makespan − reference) / reference; the reference is the best known value, or OptalCP's run where an instance has none.</footer>
 </div>
-<script src="site.js?v=20261108231032"></script>
-<script>siteIndex("20261108231032");</script>
+<script src="site.js?v=20261111194446"></script>
+<script>siteIndex("20261111194446");</script>
 <script>(function () {  // (the address is put together here, so it is not in the page source for address harvesters)
   var u = "m.schwemin", d = "outlook.de", s = document.getElementById("mail"), a = document.createElement("a");
   a.href = "mailto:" + u + "@" + d; a.textContent = u + "@" + d; s.replaceWith(a);
