@@ -153,11 +153,15 @@ async function siteSfjs(v, rows) {
   const box = document.getElementById("sjs");
   box.innerHTML = `<section class="card"><div class="fhead"><h2>schweminOPT Flexible Job Shop Scaling set (SFJS, 2026)</h2>`
     + `<span class="fsum">${d.instances} instances · ${d.files.filter(f => have.has(f.name)).length} with a schedule above</span></div>`
-    + `<p class="lead">Our own instances for measuring solvers across sizes, shapes and degrees of machine flexibility: `
-    + `instances of our job shop scaling set (SJS, see the job shop tab) with machine options per operation in the manner of `
-    + `Hurink, Jurisch and Thole's edata, rdata and vdata sets, from 2,500 to 490,000 operations. The .fjs format as above `
-    + `(gzip-compressed from 50,000 operations).</p><p class="links"><a href="sfjs/sfjs_seeds.csv" download>seeds</a> · `
-    + `<a href="sfjs/checksums.sha256" download>checksums</a> · <a href="sfjs/README.md">README</a></p></section>`;
+    + `<p class="lead">Our own instances for measuring solvers across sizes and shapes: instances of our job shop scaling `
+    + `set (SJS, see the job shop tab) with machine options per operation in the manner of Hurink, Jurisch and Thole's `
+    + `edata and rdata sets, from 2,500 to 490,000 operations. Version 2: the 84 instances that two trivial lower bounds `
+    + `(the longest job, and all work divided by the machines) do not close; version 1 also had high-flexibility and `
+    + `machine-rich instances, which those bounds solve. Our search takes up to about 300 machines with machine choice, `
+    + `so the sizes with 500 and 700 machines have no schedule here. The .fjs format as above (gzip-compressed from `
+    + `50,000 operations).</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
+    + `<a href="sfjs/sfjs_seeds.csv" download>seeds</a> · <a href="sfjs/checksums.sha256" download>checksums</a> · `
+    + `<a href="sfjs/README.md">README</a></p></section>`;
   const KIND = { edata: "1.15 machines per operation on average", rdata: "2 machines per operation on average",
                  vdata: "half the machines per operation on average" };
   for (const k of ["edata", "rdata", "vdata"]) {
@@ -166,12 +170,12 @@ async function siteSfjs(v, rows) {
     const body = files.map(f =>
       `<tr><td>${esc(f.name)}<div class="sub">${f.jobs} × ${f.machines}${have.has(f.name) ? " · schedule above" : ""}</div></td>`
       + `<td class="n">${num(f.operations)}<div class="sub">${num(f.options)} options</div></td>`
-      + `<td class="n">${f.seed}<div class="sub">${esc(f.base)}</div></td>`
+      + `<td class="n">${num(f.lb)}</td>`
       + `<td class="dl"><a href="${esc(f.file)}" download>instance</a><div class="sub">${mb(f.bytes)}</div></td></tr>`).join("");
     box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>SFJS · ${k}</h2>`
       + `<span class="fsum">${files.length} instances · ${KIND[k]}</span></div>`
       + `<div class="tbox"><table class="sjst"><thead><tr><th>instance</th><th class="n">operations</th>`
-      + `<th class="n">option seed<div class="sub">base instance</div></th><th>download</th></tr></thead>`
+      + `<th class="n">trivial lower bound</th><th>download</th></tr></thead>`
       + `<tbody>${body}</tbody></table></div></section>`);
   }
 }

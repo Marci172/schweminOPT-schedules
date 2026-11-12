@@ -1,8 +1,30 @@
-# schweminOPT Flexible Job Shop Scaling set (SFJS), version 1 (2026)
+# schweminOPT Flexible Job Shop Scaling set (SFJS), version 2 (2026)
 
 126 flexible job shop instances for measuring how solvers behave across instance sizes, shapes and degrees of machine
 flexibility. The public flexible sets end at about 500 operations (Behnke and Geiger: 100 jobs x 60 machines with 5
 operations per job); SFJS covers 2,500 to 490,000 operations.
+
+## Version 2 (2026-11-12): 84 of the 126 instances
+
+Version 1 held 42 instances that two trivial lower bounds close or nearly close, so they do not measure a solver:
+the longest job (every operation at its shortest duration) and the load bound (all work divided by the number of
+machines). With many machines per operation there is no competition left for machines and the optimum is one of the
+two; OptalCP proves 28 of them optimal within 60 seconds.
+
+Version 2 is the list `sfjs_v2.csv` (instance, size, options, the two bounds, file): the files are those of version
+1, unchanged. Removed:
+
+| Removed | Instances | Why |
+|---|---|---|
+| all `vdata` | 24 | squares and 25 x 100: optimum = longest job; 100 x 25, 140 x 35: within 0.1 % of the load bound |
+| 25 x 100 and 35 x 140, `edata` and `rdata` | 12 | far more machines than jobs: within 0 - 2.4 % of the longest job |
+| 100 x 25 and 140 x 35, `rdata` | 6 | within 0 - 0.7 % of the load bound |
+
+What remains: the ten squares and the three machine-axis sizes with `edata` and `rdata`, and 100 x 25 and 140 x 35
+with `edata`. There the best values known on 2026-11-12 are 0.5 % to 60 % above the trivial bounds (the gap grows
+with the size and is larger for `edata`).
+
+The rest of this file describes version 1, which the files and `generate.py` still produce in full.
 
 ## Instances
 
