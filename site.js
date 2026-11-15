@@ -151,8 +151,10 @@ async function siteSfjs(v, rows) {
   const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
   const have = new Set(rows.map(r => r.instance));
   const box = document.getElementById("sjs");
-  box.innerHTML = `<section class="card"><div class="fhead"><h2>schweminOPT Flexible Job Shop Scaling set (SFJS, 2026)</h2>`
-    + `<span class="fsum">${d.instances} instances · ${d.files.filter(f => have.has(f.name)).length} with a schedule above</span></div>`
+  // (the set's description goes above its result tables; without any, where the downloads are)
+  const first = [...document.querySelectorAll("#fams .fam")].find(el => el.querySelector("h2").textContent.startsWith("SFJS"));
+  const intro = `<section class="card"><div class="fhead"><h2>schweminOPT Flexible Job Shop Scaling set (SFJS, 2026)</h2>`
+    + `<span class="fsum">${d.instances} instances · ${d.files.filter(f => have.has(f.name)).length} with a schedule below</span></div>`
     + `<p class="lead">Our own instances for measuring solvers across sizes and shapes: instances of our job shop scaling `
     + `set (SJS, see the job shop tab) with machine options per operation in the manner of Hurink, Jurisch and Thole's `
     + `edata and rdata sets, from 2,500 to 490,000 operations. Version 2: the 84 instances that two trivial lower bounds `
@@ -161,25 +163,26 @@ async function siteSfjs(v, rows) {
     + `50,000 operations).</p>`
     + `<p class="lead"><b>How the comparison with OptalCP is run.</b> Both solvers get the same wall-clock time on the `
     + `same desktop PC. Our schedule is from one run of the GPU solver, 600 s on an AMD Radeon RX 6700 XT for most `
-    + `instances; every row above shows its own run time and hardware. The OptalCP value is from one run of OptalCP `
+    + `instances; every row below shows its own run time and hardware. The OptalCP value is from one run of OptalCP `
     + `2026.11.0 (preview edition) with its default search settings, 600 s and 12 threads on an AMD Ryzen 7 5700X. `
     + `There is one run per instance and solver, so differences below about 2 % are within what another seed can `
     + `change. The instances are our own, and OptalCP was not tuned for them; rows where its schedule is shorter `
     + `are marked "above OptalCP".</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
     + `<a href="sfjs/sfjs_seeds.csv" download>seeds</a> · <a href="sfjs/checksums.sha256" download>checksums</a> · `
     + `<a href="sfjs/README.md">README</a></p></section>`;
+  if (first) first.insertAdjacentHTML("beforebegin", intro); else box.innerHTML = intro;
   const KIND = { edata: "1.15 machines per operation on average", rdata: "2 machines per operation on average",
                  vdata: "half the machines per operation on average" };
   for (const k of ["edata", "rdata", "vdata"]) {
-    const files = d.files.filter(f => f.kind === k);
+    const files = d.files.filter(f => f.kind === k && !have.has(f.name));  // (a result row has the download)
     if (!files.length) continue;
     const body = files.map(f =>
-      `<tr><td>${esc(f.name)}<div class="sub">${f.jobs} × ${f.machines}${have.has(f.name) ? " · schedule above" : ""}</div></td>`
+      `<tr><td>${esc(f.name)}<div class="sub">${f.jobs} × ${f.machines}</div></td>`
       + `<td class="n">${num(f.operations)}<div class="sub">${num(f.options)} options</div></td>`
       + `<td class="n">${num(f.lb)}</td>`
       + `<td class="dl"><a href="${esc(f.file)}" download>instance</a><div class="sub">${mb(f.bytes)}</div></td></tr>`).join("");
-    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>SFJS · ${k}</h2>`
-      + `<span class="fsum">${files.length} instances · ${KIND[k]}</span></div>`
+    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>SFJS · ${k}, without a schedule yet</h2>`
+      + `<span class="fsum">${files.length} instance${files.length > 1 ? "s" : ""} · ${KIND[k]}</span></div>`
       + `<div class="tbox"><table class="sjst"><thead><tr><th>instance</th><th class="n">operations</th>`
       + `<th class="n">trivial lower bound</th><th>download</th></tr></thead>`
       + `<tbody>${body}</tbody></table></div></section>`);
