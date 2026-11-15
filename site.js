@@ -157,9 +157,15 @@ async function siteSfjs(v, rows) {
     + `set (SJS, see the job shop tab) with machine options per operation in the manner of Hurink, Jurisch and Thole's `
     + `edata and rdata sets, from 2,500 to 490,000 operations. Version 2: the 84 instances that two trivial lower bounds `
     + `(the longest job, and all work divided by the machines) do not close; version 1 also had high-flexibility and `
-    + `machine-rich instances, which those bounds solve. Our search takes up to about 300 machines with machine choice, `
-    + `so the sizes with 500 and 700 machines have no schedule here. The .fjs format as above (gzip-compressed from `
-    + `50,000 operations).</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
+    + `machine-rich instances, which those bounds solve. The .fjs format as above (gzip-compressed from `
+    + `50,000 operations).</p>`
+    + `<p class="lead"><b>How the comparison with OptalCP is run.</b> Both solvers get the same wall-clock time on the `
+    + `same desktop PC. Our schedule is from one run of the GPU solver, 600 s on an AMD Radeon RX 6700 XT for most `
+    + `instances; every row above shows its own run time and hardware. The OptalCP value is from one run of OptalCP `
+    + `2026.11.0 (preview edition) with its default search settings, 600 s and 12 threads on an AMD Ryzen 7 5700X. `
+    + `There is one run per instance and solver, so differences below about 2 % are within what another seed can `
+    + `change. The instances are our own, and OptalCP was not tuned for them; rows where its schedule is shorter `
+    + `are marked "above OptalCP".</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
     + `<a href="sfjs/sfjs_seeds.csv" download>seeds</a> · <a href="sfjs/checksums.sha256" download>checksums</a> · `
     + `<a href="sfjs/README.md">README</a></p></section>`;
   const KIND = { edata: "1.15 machines per operation on average", rdata: "2 machines per operation on average",
