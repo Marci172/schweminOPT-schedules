@@ -166,8 +166,8 @@ async function siteSfjs(v, rows) {
     + `instances; every row below shows its own run time and hardware. The OptalCP value is from one run of OptalCP `
     + `2026.11.0 (preview edition) with its default search settings, 600 s and 12 threads on an AMD Ryzen 7 5700X. `
     + `There is one run per instance and solver, so differences below about 2 % are within what another seed can `
-    + `change. The instances are our own, and OptalCP was not tuned for them; rows where its schedule is shorter `
-    + `are marked "above OptalCP".</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
+    + `change. The instances are our own, and OptalCP was not tuned for them. A row is marked `
+    + `"below OptalCP" where our schedule is shorter than OptalCP's, "above OptalCP" where OptalCP's is shorter.</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
     + `<a href="sfjs/sfjs_seeds.csv" download>seeds</a> · <a href="sfjs/checksums.sha256" download>checksums</a> · `
     + `<a href="sfjs/README.md">README</a></p></section>`;
   if (first) first.insertAdjacentHTML("beforebegin", intro); else box.innerHTML = intro;
