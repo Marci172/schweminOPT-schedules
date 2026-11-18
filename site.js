@@ -8,9 +8,12 @@ const VERDICT = { "improves the best known value": ["improves", "below best know
                   "equals the best known value": ["equals", "best known"],
                   "above the best known value": ["above", "above best known"] };
 // (rows with a reference other than a best known value, r.ref: our scaling set against OptalCP's run)
-const verdict = r => { const v = VERDICT[r.verdict]; if (!v) return ["", "–"];
+const verdict = r => { const v = VERDICT[r.verdict]; if (!v) return ["", r.ref_failed ? "no OptalCP solution" : "–"];
   return r.ref ? [v[0], { improves: "below OptalCP", equals: "equal to OptalCP", above: "above OptalCP" }[v[0]]] : v; };
-const PROBLEM = new URLSearchParams(location.search).get("p") === "fjsp" ? "fjsp" : "jsp";
+const PROBLEM = (p => p === "fjsp" || p === "fjsps" ? p : "jsp")(new URLSearchParams(location.search).get("p"));
+const SETUPS = PROBLEM === "fjsps";  // (flexible job shop with sequence-dependent setup times: its own tab and data)
+const INDEX = { jsp: "index", fjsp: "fjsp_index", fjsps: "fjsps_index" }[PROBLEM];
+const DATA = { jsp: "", fjsp: "fjsp/", fjsps: "fjsps/" }[PROBLEM];
 const LEAD = {
   jsp: `For every instance, the best schedule our GPU solvers have found. Each one is checked independently against
   ScheduleOpt's instance file (job order, machine capacity, makespan recomputed from the machine sequences) and compared with
@@ -24,30 +27,44 @@ const LEAD = {
   OptalCP on the same instance. Click an instance for its Gantt chart. Instances download in the .fjs format (first
   line: jobs, machines; then per job its number of operations and, per operation, the number of options followed by
   machine and duration pairs, machines numbered from 1); schedules as JSON with the machine and the start time of
-  every operation, job by job.` };
+  every operation, job by job.`,
+  fjsps: `Flexible job shop with sequence-dependent setup times: between two operations that follow each other on a
+  machine, the machine needs a setup time that depends on the two jobs. For every instance, the best schedule our GPU
+  solver has found. Each schedule is checked independently against the instance file and the setup times (the machine
+  is one of the operation's options, job order, machine capacity including the setup between neighbours on a machine).
+  There are no literature values for these instances; the schedules are compared with a run of OptalCP on the same
+  instance at equal time. Click an instance for its Gantt chart. An instance is its .fjs file plus its setup times
+  (JSON); schedules download as JSON with the machine and the start time of every operation, job by job.` };
 
 // ---------------------------------------------------------------- index page
 // (v: the build stamp, appended to every data URL: GitHub Pages lets browsers cache files for 10 minutes, and old data
 // with a new script showed empty columns)
 async function siteIndex(v) {
-  const F = PROBLEM === "fjsp";
-  document.getElementById(F ? "tab-fjsp" : "tab-jsp").classList.add("on");
-  document.getElementById("h1").textContent = F ? "schweminOPT best flexible job shop schedules" : "schweminOPT best job shop schedules";
+  const F = PROBLEM !== "jsp";
+  document.getElementById("tab-" + PROBLEM).classList.add("on");
+  document.getElementById("h1").textContent = { jsp: "schweminOPT best job shop schedules",
+    fjsp: "schweminOPT best flexible job shop schedules",
+    fjsps: "schweminOPT best flexible job shop schedules with setup times" }[PROBLEM];
   document.getElementById("lead").textContent = LEAD[PROBLEM].replace(/\s+/g, " ");
-  const data = await (await fetch(`data/${F ? "fjsp_index" : "index"}.json?v=${v}`)).json();
+  const data = await (await fetch(`data/${INDEX}.json?v=${v}`)).json();
   const rows = data.rows;
   const lit = rows.filter(r => !r.ref && r.ub != null), own = rows.filter(r => !(!r.ref && r.ub != null));
   const cnt = k => lit.filter(r => VERDICT[r.verdict] && VERDICT[r.verdict][0] === k).length;
-  document.getElementById("tiles").innerHTML = [["instances", rows.length], ["below best known", cnt("improves")],
-    ["equal to best known", cnt("equals")], ["above best known", cnt("above")]]
-    .concat(own.length ? [["scaling set schedules", own.length]] : [])
+  const vs = k => rows.filter(r => verdict(r)[0] === k).length;
+  document.getElementById("tiles").innerHTML = (SETUPS
+    ? [["instances", rows.length], ["below OptalCP", vs("improves")], ["equal to OptalCP", vs("equals")],
+       ["above OptalCP", vs("above")], ["no OptalCP solution", rows.filter(r => r.ref_failed).length]]
+    : [["instances", rows.length], ["below best known", cnt("improves")],
+       ["equal to best known", cnt("equals")], ["above best known", cnt("above")]]
+      .concat(own.length ? [["scaling set schedules", own.length]] : []))
     .map(([k, val]) => `<div class="tile"><div class="k">${k}</div><div class="v">${val}</div></div>`).join("");
   // one card per family, stacked; the search and the result filter apply to all of them, each card sorts on its own
   const ORDER = ["Fisher, Thompson", "Lawrence", "Adams, Balas, Zawack", "Applegate, Cook", "Storer, Wu, Vaccari",
                  "Yamada, Nakano", "Taillard", "Demirkol", "Da Col & Teppan (tai)",
                  "Brandimarte", "Chambers, Barnes", "Dauzère-Pérès, Paulli", "Behnke, Geiger", "Fattahi, Mehrabad, Jolai",
                  "Kacem, Hammadi, Borne", "Hurink, Jurisch, Thole · sdata", "Hurink, Jurisch, Thole · edata",
-                 "Hurink, Jurisch, Thole · rdata", "Hurink, Jurisch, Thole · vdata", "SFJS · edata", "SFJS · rdata", "SFJS · vdata"];
+                 "Hurink, Jurisch, Thole · rdata", "Hurink, Jurisch, Thole · vdata", "SFJS · edata", "SFJS · rdata", "SFJS · vdata",
+                 "SFJS with setup times · edata", "SFJS with setup times · rdata"];
   const fams = [...new Set(rows.map(r => r.family))]
     .sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
   document.getElementById("foot").insertAdjacentHTML("beforeend", ` Generated ${esc(data.generated)}.`);
@@ -70,7 +87,7 @@ async function siteIndex(v) {
   });
   const row = r => {
     const [cls, label] = verdict(r);
-    const name = r.gantt ? `<a href="schedule.html?i=${encodeURIComponent(r.instance)}${F ? "&p=fjsp" : ""}">${esc(r.instance)}</a>` : esc(r.instance);
+    const name = r.gantt ? `<a href="schedule.html?i=${encodeURIComponent(r.instance)}${F ? "&p=" + PROBLEM : ""}">${esc(r.instance)}</a>` : esc(r.instance);
     const iurl = r.instance_url || `instances/${encodeURIComponent(r.instance)}.txt`;
     const surl = r.solution_url || `solutions/${encodeURIComponent(r.instance)}.json`;
     const refl = r.ref ? `<span title="${esc(r.ref)}">OptalCP</span>` : "best known";
@@ -84,7 +101,9 @@ async function siteIndex(v) {
       + `<td title="${esc(r.system)}&#10;${esc(r.solver)}">${esc(gpuName(r.system))}<div class="sub">${esc(r.solver_short || r.solver)}</div></td>`
       + `<td>${esc(r.date)}</td>`
       + `<td class="dl"><a href="${esc(iurl)}" download title="${F ? "the instance in the .fjs format (machines from 1)" : "the instance: jobs and machines, then per job machine / duration pairs (machines from 0)"}">instance</a>`
-      + `<div class="sub"><a href="${esc(surl)}" download title="${F ? "machine (from 1) and start time of every operation, job by job" : "schedule in ScheduleOpt's format"}">schedule</a></div></td></tr>`;
+      + `<div class="sub"><a href="${esc(surl)}" download title="${F ? "machine (from 1) and start time of every operation, job by job" : "schedule in ScheduleOpt's format"}">schedule</a>`
+      + (r.setup_url ? ` · <a href="${esc(r.setup_url)}" download title="the setup times: one point per job; the setup between two jobs is the city-block distance of their points">setups</a>` : "")
+      + `</div></td></tr>`;
   };
   const fill = () => {
     const q = st.q.toLowerCase();
@@ -106,7 +125,7 @@ async function siteIndex(v) {
     }
     document.getElementById("count").textContent = `${shown} of ${rows.length}`;
   };
-  if (F) siteSfjs(v, rows); else siteSjs(v);
+  if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows); else siteSjs(v);
   document.getElementById("q").addEventListener("input", e => { st.q = e.target.value; fill(); });
   document.getElementById("ver").addEventListener("change", e => { st.ver = e.target.value; fill(); });
   for (const c of cards) c.el.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
@@ -189,24 +208,48 @@ async function siteSfjs(v, rows) {
   }
 }
 
+// ---------------------------------------------------------------- SFJS with setup times: what the instances are
+function siteSetups() {
+  const first = document.querySelector("#fams .fam");
+  const intro = `<section class="card"><div class="fhead"><h2>SFJS with sequence-dependent setup times (+set1)</h2>`
+    + `<span class="fsum">the 84 instances of the flexible scaling set, each with one setup matrix</span></div>`
+    + `<p class="lead"><b>The instances.</b> Every instance of our flexible scaling set (SFJS version 2, see the flexible `
+    + `job shop tab) with setup times added by a seeded rule: every job is a product with a point on an integer grid, `
+    + `and the setup between two operations that directly follow each other on a machine is the city-block distance `
+    + `of their jobs' points, |x<sub>a</sub> − x<sub>b</sub>| + |y<sub>a</sub> − y<sub>b</sub>| (so it keeps the triangle `
+    + `inequality, and is 0 between operations of one job). The same points hold on every machine; there is no setup `
+    + `before a machine's first operation. The grid is sized so that the mean setup is about half the mean processing `
+    + `time. The "setups" download of a row has the points; the "instance" download is the unchanged .fjs file.</p>`
+    + `<p class="lead"><b>How the comparison with OptalCP is run.</b> Both solvers get the same model and the same `
+    + `wall-clock time on the same desktop PC: one run of the GPU solver, 600 s on an AMD Radeon RX 6700 XT, and one `
+    + `run of OptalCP 2026.11.0 with its default search settings, 600 s and 12 threads on an AMD Ryzen 7 5700X (32 GB), `
+    + `limited to 20 GB of memory. On the 500 × 500 and 700 × 700 instances OptalCP ended without a solution (out of `
+    + `memory); those rows are marked "no OptalCP solution" and show only the trivial lower bound of the instance `
+    + `without setups. There is one run per instance and solver, so differences below about 2 % are within what `
+    + `another seed can change. The instances are our own, and OptalCP was not tuned for them. A row is marked `
+    + `"below OptalCP" where our schedule is shorter than OptalCP's, "above OptalCP" where OptalCP's is shorter.</p></section>`;
+  if (first) first.insertAdjacentHTML("beforebegin", intro); else document.getElementById("sjs").innerHTML = intro;
+}
+
 // ---------------------------------------------------------------- schedule page (Gantt chart)
 async function siteSchedule(v) {
   const inst = new URLSearchParams(location.search).get("i") || "";
   let d;
-  const F = PROBLEM === "fjsp";
-  document.querySelector("header a").href = F ? "./?p=fjsp" : "./";
-  try { d = await (await fetch(`data/${F ? "fjsp/" : ""}${encodeURIComponent(inst)}.json?v=${v}`)).json(); }
+  const F = PROBLEM !== "jsp";
+  document.querySelector("header a").href = F ? "./?p=" + PROBLEM : "./";
+  try { d = await (await fetch(`data/${DATA}${encodeURIComponent(inst)}.json?v=${v}`)).json(); }
   catch (e) { document.getElementById("title").textContent = `no schedule for "${inst}"`; return; }
   document.title = `${d.instance} Schedule`;
   const [cls, label] = d.verdict ? verdict(d) : ["", ""];
   document.getElementById("title").innerHTML = `${esc(d.instance)} <span class="chip ${cls}" style="font-size:.8rem;vertical-align:middle">${label}</span>`;
   document.getElementById("sub").textContent = `${d.solver}. System: ${d.system}.${d.date ? " Run of " + d.date + "." : ""}`;
   const crit = d.ops.reduce((n, o) => n + o[5], 0);
-  document.getElementById("info").innerHTML = [`makespan ${num(d.makespan)}`, `${d.ref ? d.ref : "best known"} ${num(d.ub)}`, `lower bound ${num(d.lb)}`,
+  document.getElementById("info").innerHTML = [`makespan ${num(d.makespan)}`, d.ref_failed ? `${d.ref}: no solution` : `${d.ref ? d.ref : "best known"} ${num(d.ub)}`, `lower bound ${num(d.lb)}`,
     d.gap == null ? "" : `gap ${(d.gap > 0 ? "+" : "") + d.gap.toFixed(2)} %`,
     `time to best ${secs(d.time_to_best, d.time_exact)}`, `run ${secs(d.run_seconds, true)}`, `${d.jobs} jobs × ${d.machines} machines`,
     `${num(d.operations)} operations`, d.options ? `${num(d.options)} machine options` : "", `${num(crit)} critical`,
     `<a href="${esc(d.instance_url || `instances/${encodeURIComponent(d.instance)}.txt`)}" download>instance (${F ? ".fjs" : ".txt"})</a>`,
+    d.setup_url ? `<a href="${esc(d.setup_url)}" download>setup times (one point per job)</a>` : "",
     `<a href="${esc(d.solution_url || `solutions/${encodeURIComponent(d.instance)}.json`)}" download>schedule (${F ? "machine and start per operation" : "ScheduleOpt format"})</a>`]
     .filter(Boolean).map(x => `<span>${x.startsWith("<a") ? x : esc(x)}</span>`).join("");
   const G = { job: null, bars: [] };
