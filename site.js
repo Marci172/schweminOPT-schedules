@@ -141,7 +141,7 @@ async function siteSjs(v) {
   const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
   const box = document.getElementById("sjs");
   box.innerHTML = `<section class="card"><div class="fhead"><h2>schweminOPT Job Shop Scaling set (SJS, 2026)</h2>`
-    + `<span class="fsum">${d.instances} instances, 10 per size · no schedules yet</span></div>`
+    + `<span class="fsum">${d.instances} instances, 3 per size · no schedules yet</span></div>`
     + `<p class="lead">Our own instances for measuring solvers across sizes and shapes, from Taillard's generator: `
     + `every instance can be regenerated from its two seeds. Same text format as above (gzip-compressed from 50,000 `
     + `operations).</p><p class="links"><a href="sjs/SJS2026.zip" download>whole set (zip, ${mb(d.zip_bytes)})</a> · `

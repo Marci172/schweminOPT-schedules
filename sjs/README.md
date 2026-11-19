@@ -1,22 +1,28 @@
-# schweminOPT Job Shop Scaling set (SJS), version 1 (2026)
+# schweminOPT Job Shop Scaling set (SJS), version 2 (2026)
 
-190 job shop instances for measuring how solvers behave across instance sizes and shapes. The classic sets jump from
+57 job shop instances for measuring how solvers behave across instance sizes and shapes. The classic sets jump from
 small instances (Taillard: up to 100 x 20) to 100 x 100 and 1000 x 1000 (Da Col & Teppan 2022) with little in between;
 SJS fills the range below and above 100 x 100, varies the ratio of jobs to machines at equal size, and the number of
 machines at a fixed number of jobs.
 
+## Version 2 (2026-11-19): three instances per size
+
+Version 1 had ten instances per size (190 in all), more than a scaling study uses: the flexible set SFJS and the due
+date set SDD are built on instances 1 to 3 and 1. Version 2 keeps instances 1 to 3 of every size; their files are
+those of version 1, unchanged (same seeds). Instances 4 to 10 can be written again with `generate.py --all`.
+
 ## Instances
 
-Ten instances per size, named `sjs_J_M_k` (J jobs, M machines, instance k = 1..10). Processing times are uniform in
+Three instances per size, named `sjs_J_M_k` (J jobs, M machines, instance k = 1..3). Processing times are uniform in
 1..99 as in Taillard's set; the `sjsw_J_M_k` instances use 1..1000 as Da Col & Teppan's.
 
 | Group | Sizes (J x M) | Operations | Instances |
 |---|---|---|---|
-| Squares below 100 x 100 | 50, 60, 70, 80, 90 | 2,500 - 8,100 | 50 |
-| Squares above 100 x 100 | 150, 200, 300, 500, 700 | 22,500 - 490,000 | 50 |
-| Shapes (same operations, other ratio) | 25 x 100, 100 x 25, 35 x 140, 140 x 35 | 2,500 / 4,900 | 40 |
-| Machine axis (200 jobs) | 200 x 300, 200 x 500, 200 x 700 | 60,000 - 140,000 | 30 |
-| Wide processing times (`sjsw`) | 60 x 60, 80 x 80 | 3,600 / 6,400 | 20 |
+| Squares below 100 x 100 | 50, 60, 70, 80, 90 | 2,500 - 8,100 | 15 |
+| Squares above 100 x 100 | 150, 200, 300, 500, 700 | 22,500 - 490,000 | 15 |
+| Shapes (same operations, other ratio) | 25 x 100, 100 x 25, 35 x 140, 140 x 35 | 2,500 / 4,900 | 12 |
+| Machine axis (200 jobs) | 200 x 300, 200 x 500, 200 x 700 | 60,000 - 140,000 | 9 |
+| Wide processing times (`sjsw`) | 60 x 60, 80 x 80 | 3,600 / 6,400 | 6 |
 
 ## Format
 
@@ -33,10 +39,10 @@ seed. The implementation (`benchmarks/taillard_generator.py`) reproduces all 80 
 seeds (`references/taillard_seeds.csv`).
 
 The two seeds of every instance are in `sjs_seeds.csv`; they were drawn from the master seed 20261105 in the order of
-the table above (all distinct). `generate.py` writes the set, `generate.py --check` regenerates it and compares file by
+the table above, ten pairs per size as in version 1 (all distinct), of which the first three are used. `generate.py` writes the set, `generate.py --check` regenerates it and compares file by
 file; `checksums.sha256` holds the SHA-256 of every file.
 
 ## Licence and citation
 
-Creative Commons Attribution 4.0 (CC BY 4.0). Please cite as: schweminOPT Job Shop Scaling set (SJS), version 1, 2026,
+Creative Commons Attribution 4.0 (CC BY 4.0). Please cite as: schweminOPT Job Shop Scaling set (SJS), version 2, 2026,
 https://github.com/Marci172/schweminOPT-schedules.
