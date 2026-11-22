@@ -10,8 +10,9 @@ const VERDICT = { "improves the best known value": ["improves", "below best know
 // (rows with a reference other than a best known value, r.ref: our scaling set against OptalCP's run)
 const verdict = r => { const v = VERDICT[r.verdict]; if (!v) return ["", r.ref_failed ? "no OptalCP solution" : "–"];
   return r.ref ? [v[0], { improves: "below OptalCP", equals: "equal to OptalCP", above: "above OptalCP" }[v[0]]] : v; };
-const PROBLEM = (p => p === "fjsp" || p === "fjsps" ? p : "jsp")(new URLSearchParams(location.search).get("p"));
+const PROBLEM = (p => p === "fjsp" || p === "fjsps" || p === "dd" ? p : "jsp")(new URLSearchParams(location.search).get("p"));
 const SETUPS = PROBLEM === "fjsps";  // (flexible job shop with sequence-dependent setup times: its own tab and data)
+const DUE = PROBLEM === "dd";  // (the due date set: its own tab, downloads only, no result index)
 const INDEX = { jsp: "index", fjsp: "fjsp_index", fjsps: "fjsps_index" }[PROBLEM];
 const DATA = { jsp: "", fjsp: "fjsp/", fjsps: "fjsps/" }[PROBLEM];
 const LEAD = {
@@ -34,7 +35,9 @@ const LEAD = {
   is one of the operation's options, job order, machine capacity including the setup between neighbours on a machine).
   There are no literature values for these instances; the schedules are compared with a run of OptalCP on the same
   instance at equal time. Click an instance for its Gantt chart. An instance is its .fjs file plus its setup times
-  (JSON); schedules download as JSON with the machine and the start time of every operation, job by job.` };
+  (JSON); schedules download as JSON with the machine and the start time of every operation, job by job.`,
+  dd: `Job shop and flexible job shop instances with due dates, for the total weighted tardiness: the sum over the
+  jobs of weight × max(0, end of the job − due date). The instances are our own; there are no schedules here yet.` };
 
 // ---------------------------------------------------------------- index page
 // (v: the build stamp, appended to every data URL: GitHub Pages lets browsers cache files for 10 minutes, and old data
@@ -44,7 +47,14 @@ async function siteIndex(v) {
   document.getElementById("tab-" + PROBLEM).classList.add("on");
   document.getElementById("h1").textContent = { jsp: "schweminOPT best job shop schedules",
     fjsp: "schweminOPT best flexible job shop schedules",
-    fjsps: "schweminOPT best flexible job shop schedules with setup times" }[PROBLEM];
+    fjsps: "schweminOPT best flexible job shop schedules with setup times",
+    dd: "schweminOPT due date instances" }[PROBLEM];
+  if (DUE) {
+    document.getElementById("lead").textContent = LEAD.dd.replace(/\s+/g, " ");
+    document.getElementById("tiles").style.display = "none";
+    document.querySelector(".tools").style.display = "none";
+    return siteSdd(v);
+  }
   document.getElementById("lead").textContent = LEAD[PROBLEM].replace(/\s+/g, " ");
   const data = await (await fetch(`data/${INDEX}.json?v=${v}`)).json();
   const rows = data.rows;
@@ -125,8 +135,7 @@ async function siteIndex(v) {
     }
     document.getElementById("count").textContent = `${shown} of ${rows.length}`;
   };
-  if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows).then(() => siteSdd(v, "flexible_jobshop"));
-  else siteSjs(v).then(() => siteSdd(v, "jobshop"));
+  if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows); else siteSjs(v);
   document.getElementById("q").addEventListener("input", e => { st.q = e.target.value; fill(); });
   document.getElementById("ver").addEventListener("change", e => { st.ver = e.target.value; fill(); });
   for (const c of cards) c.el.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
@@ -209,45 +218,42 @@ async function siteSfjs(v, rows) {
   }
 }
 
-// ---------------------------------------------------------------- SDD: our due date set (downloads only)
-// (below the scaling set of the tab: an introduction card, then the tab's base instances with their four levels)
-async function siteSdd(v, problem) {
+// ---------------------------------------------------------------- SDD: our due date set (its own tab, downloads only)
+// (an introduction card, then the base instances with their four levels: job shop, then the two flexible kinds)
+async function siteSdd(v) {
   let d;
   try { d = await (await fetch(`data/sdd.json?v=${v}`)).json(); } catch (e) { return; }
   const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
-  const bases = d.bases.filter(b => b.problem === problem);
-  if (!bases.length) return;
-  const flex = problem === "flexible_jobshop";
+  const count = p => d.bases.filter(b => b.problem === p).length * 4;
   const box = document.getElementById("sjs");
-  box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>schweminOPT Due Date Scaling set (SDD, 2026)</h2>`
-    + `<span class="fsum">${d.instances} instances · ${bases.length * 4} ${flex ? "with machine choice" : "without machine choice"} `
-    + `· no schedules yet</span></div>`
-    + `<p class="lead">Our own instances for the total weighted tardiness: the sum over the jobs of weight × `
-    + `max(0, end of the job − due date). The base instances are instance 1 of every size of our scaling sets `
-    + `(${flex ? "here SFJS, edata and rdata; the job shop tab has the ones without machine choice"
-              : "here SJS; the flexible job shop tab has the ones with machine choice"}), unchanged, each with due dates `
-    + `at four levels of tightness.</p>`
+  box.innerHTML = `<section class="card"><div class="fhead"><h2>schweminOPT Due Date Scaling set (SDD, 2026)</h2>`
+    + `<span class="fsum">${d.instances} instances · ${count("jobshop")} job shop, ${count("flexible_jobshop")} `
+    + `flexible job shop · no schedules yet</span></div>`
+    + `<p class="lead">The base instances are instance 1 of every size of our two scaling sets (SJS on the job shop `
+    + `tab, SFJS edata and rdata on the flexible job shop tab), unchanged, each with due dates at four levels of `
+    + `tightness, from 2,500 to 490,000 operations.</p>`
     + `<p class="lead"><b>Due dates and weights.</b> With p the work of a job (every operation at its shortest `
     + `duration) and H the reference makespan of the base instance, a makespan a search found, frozen with this `
     + `version: due = p + floor(tau × (H − p)). At tau 0.5 (+dd50) nearly every job is late, 0.7 (+dd70) is medium, `
     + `0.9 (+dd90) loose; at 1.05 (+dd105) a schedule without a late job exists, so the optimum is 0. The first 20 % `
     + `of the jobs weigh 4, the next 60 % 2, the last 20 % 1 (Singer and Pinedo). No release dates.</p>`
-    + `<p class="lead"><b>Format.</b> An instance is its base file (the "base" download, unchanged) plus one JSON file `
-    + `per level with the due date and the weight of every job, in the order of the base file.</p>`
+    + `<p class="lead"><b>Format.</b> An instance is its base file (the "base instance" download, unchanged) plus one `
+    + `JSON file per level with the due date and the weight of every job, in the order of the base file.</p>`
     + `<p class="links"><a href="sdd/SDD2026.zip" download>all due dates (zip, ${mb(d.zip_bytes)})</a> · `
     + `<a href="sdd/sdd.csv" download>instance list</a> · <a href="sdd/reference_makespans.csv" download>reference makespans</a> · `
-    + `<a href="sdd/checksums.sha256" download>checksums</a> · <a href="sdd/README.md">README</a></p></section>`);
-  const groups = flex ? [["edata", "1.15 machines per operation on average"], ["rdata", "2 machines per operation on average"]]
-                      : [["", ""]];
-  for (const [k, note] of groups) {
-    const mine = bases.filter(b => b.kind === k);
+    + `<a href="sdd/checksums.sha256" download>checksums</a> · <a href="sdd/README.md">README</a></p></section>`;
+  const groups = [["jobshop", "", "Job shop", ""],
+                  ["flexible_jobshop", "edata", "Flexible job shop · edata", "1.15 machines per operation on average"],
+                  ["flexible_jobshop", "rdata", "Flexible job shop · rdata", "2 machines per operation on average"]];
+  for (const [p, k, title, note] of groups) {
+    const mine = d.bases.filter(b => b.problem === p && b.kind === k);
     if (!mine.length) continue;
     const body = mine.map(b =>
       `<tr><td>${esc(b.base)}<div class="sub">${b.jobs} × ${b.machines}</div></td>`
       + `<td class="n">${num(b.operations)}</td><td class="n">${num(b.reference_makespan)}</td>`
       + `<td class="dl">${b.levels.map(l => `<a href="${esc(l.file)}" download title="${esc(l.name)}">+dd${l.level}</a>`).join(" · ")}`
       + `<div class="sub"><a href="${esc(b.base_file)}" download>base instance</a></div></td></tr>`).join("");
-    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>SDD · ${flex ? k : "job shop"}</h2>`
+    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>${title}</h2>`
       + `<span class="fsum">${mine.length * 4} instances · ${mine.length} base instances × 4 levels${note ? " · " + note : ""}</span></div>`
       + `<div class="tbox"><table class="sjst sddt"><thead><tr><th>base instance</th><th class="n">operations</th>`
       + `<th class="n">reference makespan</th><th>due dates</th></tr></thead>`
