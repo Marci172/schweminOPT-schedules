@@ -1,9 +1,15 @@
-# schweminOPT Job Shop Scaling set (SJS), version 2 (2026)
+# schweminOPT Job Shop Scaling set (SJS), version 3 (2026)
 
-57 job shop instances for measuring how solvers behave across instance sizes and shapes. The classic sets jump from
+87 job shop instances for measuring how solvers behave across instance sizes and shapes. The classic sets jump from
 small instances (Taillard: up to 100 x 20) to 100 x 100 and 1000 x 1000 (Da Col & Teppan 2022) with little in between;
 SJS fills the range below and above 100 x 100, varies the ratio of jobs to machines at equal size, and the number of
 machines at a fixed number of jobs.
+
+## Version 3 (2026-11-22): more jobs than machines
+
+Ten sizes with more jobs than machines were added (30 instances): 200 and 500 jobs on 20 machines, 100 to 500 jobs
+on 50 machines, 150 to 500 jobs on 100 machines. Their seeds are drawn after all earlier ones, so the 57 instances of
+version 2 are unchanged.
 
 ## Version 2 (2026-11-19): three instances per size
 
@@ -23,6 +29,7 @@ Three instances per size, named `sjs_J_M_k` (J jobs, M machines, instance k = 1.
 | Shapes (same operations, other ratio) | 25 x 100, 100 x 25, 35 x 140, 140 x 35 | 2,500 / 4,900 | 12 |
 | Machine axis (200 jobs) | 200 x 300, 200 x 500, 200 x 700 | 60,000 - 140,000 | 9 |
 | Wide processing times (`sjsw`) | 60 x 60, 80 x 80 | 3,600 / 6,400 | 6 |
+| More jobs than machines | 200 x 20, 500 x 20, 100 x 50, 200 x 50, 300 x 50, 500 x 50, 150 x 100, 200 x 100, 300 x 100, 500 x 100 | 4,000 - 50,000 | 30 |
 
 ## Format
 
@@ -39,10 +46,10 @@ seed. The implementation (`benchmarks/taillard_generator.py`) reproduces all 80 
 seeds (`references/taillard_seeds.csv`).
 
 The two seeds of every instance are in `sjs_seeds.csv`; they were drawn from the master seed 20261105 in the order of
-the table above, ten pairs per size as in version 1 (all distinct), of which the first three are used. `generate.py` writes the set, `generate.py --check` regenerates it and compares file by
+the table above (the wide processing times before the sizes of version 3), ten pairs per size as in version 1 (all distinct), of which the first three are used. `generate.py` writes the set, `generate.py --check` regenerates it and compares file by
 file; `checksums.sha256` holds the SHA-256 of every file.
 
 ## Licence and citation
 
-Creative Commons Attribution 4.0 (CC BY 4.0). Please cite as: schweminOPT Job Shop Scaling set (SJS), version 2, 2026,
+Creative Commons Attribution 4.0 (CC BY 4.0). Please cite as: schweminOPT Job Shop Scaling set (SJS), version 3, 2026,
 https://github.com/Marci172/schweminOPT-schedules.

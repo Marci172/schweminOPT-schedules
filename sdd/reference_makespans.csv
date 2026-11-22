@@ -18,6 +18,16 @@ sjs_200_500_1,30806,600,results/gpu/sdd_reference
 sjs_200_700_1,40984,600,results/gpu/sdd_reference
 sjsw_60_60_1,45780,120,results/gpu/sdd_reference
 sjsw_80_80_1,61935,120,results/gpu/sdd_reference
+sjs_200_20_1,10892,120,results/gpu/sdd_reference
+sjs_500_20_1,26553,120,results/gpu/sdd_reference
+sjs_100_50_1,5723,120,results/gpu/sdd_reference
+sjs_200_50_1,11026,120,results/gpu/sdd_reference
+sjs_300_50_1,16168,120,results/gpu/sdd_reference
+sjs_500_50_1,26372,120,results/gpu/sdd_reference
+sjs_150_100_1,9641,120,results/gpu/sdd_reference
+sjs_200_100_1,11815,120,results/gpu/sdd_reference
+sjs_300_100_1,16505,120,results/gpu/sdd_reference
+sjs_500_100_1,26880,120,results/gpu/sdd_reference
 sfjs_50_50_1_edata,3586,600.0,results/gpu/flex_sfjs_rx_10min
 sfjs_50_50_1_rdata,3050,600.0,results/gpu/flex_sfjs_rx_10min
 sfjs_60_60_1_edata,4370,600.0,results/gpu/flex_sfjs_rx_10min

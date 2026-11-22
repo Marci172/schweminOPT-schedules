@@ -231,14 +231,15 @@ async function siteSdd(v) {
     + `flexible job shop · no schedules yet</span></div>`
     + `<p class="lead">The base instances are instance 1 of every size of our two scaling sets (SJS on the job shop `
     + `tab, SFJS edata and rdata on the flexible job shop tab), unchanged, each with due dates at four levels of `
-    + `tightness, from 2,500 to 490,000 operations.</p>`
+    + `tightness, from 2,500 to 490,000 operations. Version 2 adds ten job shop sizes with more jobs than machines `
+    + `(100 to 500 jobs on 20, 50 and 100 machines).</p>`
     + `<p class="lead"><b>Due dates and weights.</b> With p the work of a job (every operation at its shortest `
     + `duration) and H the reference makespan of the base instance, a makespan a search found, frozen with this `
     + `version: due = p + floor(tau × (H − p)). At tau 0.5 (+dd50) nearly every job is late, 0.7 (+dd70) is medium, `
     + `0.9 (+dd90) loose; at 1.05 (+dd105) a schedule without a late job exists, so the optimum is 0. The first 20 % `
     + `of the jobs weigh 4, the next 60 % 2, the last 20 % 1 (Singer and Pinedo). No release dates.</p>`
-    + `<p class="lead"><b>Format.</b> An instance is its base file (the "base instance" download, unchanged) plus one `
-    + `JSON file per level with the due date and the weight of every job, in the order of the base file.</p>`
+    + `<p class="lead"><b>Format.</b> An instance is its base file (the "base instance" download, unchanged) plus a `
+    + `JSON file with the due date and the weight of every job, in the order of the base file.</p>`
     + `<p class="links"><a href="sdd/SDD2026.zip" download>all due dates (zip, ${mb(d.zip_bytes)})</a> · `
     + `<a href="sdd/sdd.csv" download>instance list</a> · <a href="sdd/reference_makespans.csv" download>reference makespans</a> · `
     + `<a href="sdd/checksums.sha256" download>checksums</a> · <a href="sdd/README.md">README</a></p></section>`;
@@ -248,15 +249,15 @@ async function siteSdd(v) {
   for (const [p, k, title, note] of groups) {
     const mine = d.bases.filter(b => b.problem === p && b.kind === k);
     if (!mine.length) continue;
-    const body = mine.map(b =>
-      `<tr><td>${esc(b.base)}<div class="sub">${b.jobs} × ${b.machines}</div></td>`
+    const body = mine.flatMap(b => b.levels.map(l =>
+      `<tr><td>${esc(l.name)}<div class="sub">${b.jobs} × ${b.machines} · tau ${(l.level / 100).toFixed(2)}</div></td>`
       + `<td class="n">${num(b.operations)}</td><td class="n">${num(b.reference_makespan)}</td>`
-      + `<td class="dl">${b.levels.map(l => `<a href="${esc(l.file)}" download title="${esc(l.name)}">+dd${l.level}</a>`).join(" · ")}`
-      + `<div class="sub"><a href="${esc(b.base_file)}" download>base instance</a></div></td></tr>`).join("");
+      + `<td class="dl"><a href="${esc(l.file)}" download>due dates</a>`
+      + `<div class="sub"><a href="${esc(b.base_file)}" download>base instance</a></div></td></tr>`)).join("");
     box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>${title}</h2>`
       + `<span class="fsum">${mine.length * 4} instances · ${mine.length} base instances × 4 levels${note ? " · " + note : ""}</span></div>`
-      + `<div class="tbox"><table class="sjst sddt"><thead><tr><th>base instance</th><th class="n">operations</th>`
-      + `<th class="n">reference makespan</th><th>due dates</th></tr></thead>`
+      + `<div class="tbox"><table class="sjst"><thead><tr><th>instance</th><th class="n">operations</th>`
+      + `<th class="n">reference makespan</th><th>download</th></tr></thead>`
       + `<tbody>${body}</tbody></table></div></section>`);
   }
 }
