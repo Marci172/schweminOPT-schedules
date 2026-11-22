@@ -1,8 +1,26 @@
-# schweminOPT Flexible Job Shop Scaling set (SFJS), version 2 (2026)
+# schweminOPT Flexible Job Shop Scaling set (SFJS), version 3 (2026)
 
-126 flexible job shop instances for measuring how solvers behave across instance sizes, shapes and degrees of machine
+108 flexible job shop instances (the list `sfjs_v3.csv`; the generator writes 216 files, see below) for measuring how solvers behave across instance sizes, shapes and degrees of machine
 flexibility. The public flexible sets end at about 500 operations (Behnke and Geiger: 100 jobs x 60 machines with 5
 operations per job); SFJS covers 2,500 to 490,000 operations.
+
+## Version 3 (2026-11-22): more jobs than machines
+
+The ten sizes with more jobs than machines of SJS version 3 got their flexible versions (90 more files, the 126
+earlier ones unchanged). Listed are those the load bound does not close: a 120 second search on instance 1 ended
+more than 1 % above it.
+
+| Size | `edata` above the load bound | `rdata` | Listed |
+|---|---|---|---|
+| 150 x 100 | 23.1 % | 7.2 % | `edata`, `rdata` |
+| 200 x 100 | 12.1 % | 2.4 % | `edata`, `rdata` |
+| 100 x 50 | 7.9 % | 0.6 % | `edata` |
+| 300 x 100 | 4.4 % | 0.4 % | `edata` |
+| 500 x 100 | 2.5 % | 0.5 % | `edata` |
+| 200 x 50 | 1.5 % | 0.0 % | `edata` |
+| 300 x 50, 500 x 50, 200 x 20, 500 x 20 | 0.8 %, 0.3 %, 0.04 %, 0.03 % | not run | none |
+
+So version 3 is the list `sfjs_v3.csv`: the 84 instances of version 2 and these 24 (three per size and kind).
 
 ## Version 2 (2026-11-12): 84 of the 126 instances
 
@@ -11,7 +29,7 @@ the longest job (every operation at its shortest duration) and the load bound (a
 machines). With many machines per operation there is no competition left for machines and the optimum is one of the
 two; OptalCP proves 28 of them optimal within 60 seconds.
 
-Version 2 is the list `sfjs_v2.csv` (instance, size, options, the two bounds, file): the files are those of version
+Version 2 was the list `sfjs_v2.csv`, now the first 84 rows of `sfjs_v3.csv` (instance, size, options, the two bounds, file): the files are those of version
 1, unchanged. Removed:
 
 | Removed | Instances | Why |
@@ -24,7 +42,8 @@ What remains: the ten squares and the three machine-axis sizes with `edata` and 
 with `edata`. There the best values known on 2026-11-12 are 0.5 % to 60 % above the trivial bounds (the gap grows
 with the size and is larger for `edata`).
 
-The rest of this file describes version 1, which the files and `generate.py` still produce in full.
+The rest of this file describes version 1, which the files and `generate.py` still produce in full (with the sizes
+of version 3: 216 files).
 
 ## Instances
 

@@ -1,6 +1,6 @@
 # schweminOPT Due Date Scaling set (SDD), version 2 (2026)
 
-228 instances with due dates for measuring how solvers handle the total weighted tardiness across instance sizes,
+260 instances with due dates for measuring how solvers handle the total weighted tardiness across instance sizes,
 shapes and degrees of machine flexibility: the sum over the jobs of weight x max(0, end of the job - due date). The
 public weighted tardiness job shop instances are 10 x 10 (Singer and Pinedo 1998); SDD covers 2,500 to 490,000
 operations, with and without machine choice.
@@ -13,10 +13,11 @@ instance 1 of every size of the two scaling sets, unchanged:
 | Base set | Categories | Base instances | With four levels |
 |---|---|---|---|
 | Job shop scaling set SJS, version 3 (`sjs_J_M_1`, `sjsw_J_M_1`) | 27 sizes, 2 with wide processing times | 29 | 116 |
-| Flexible job shop scaling set SFJS, version 2 (`sfjs_J_M_1_KIND`) | 28 sizes and kinds (`edata`, `rdata`) | 28 | 112 |
+| Flexible job shop scaling set SFJS, version 3 (`sfjs_J_M_1_KIND`) | 36 sizes and kinds (`edata`, `rdata`) | 36 | 144 |
 
-Version 2 (2026-11-22) adds the ten job shop sizes with more jobs than machines of SJS version 3 (40 instances);
-the 188 instances of version 1 are unchanged.
+Version 2 (2026-11-22) adds the sizes with more jobs than machines: the ten of SJS version 3 (40 instances) and the
+eight sizes and kinds of them that SFJS version 3 lists (32 instances). The 188 instances of version 1 are unchanged.
+The reference makespans of the new base instances are from 120 second runs.
 
 `sdd.csv` lists every instance (base, problem, kind, jobs, machines, operations, tau, reference makespan, longest
 job, file).

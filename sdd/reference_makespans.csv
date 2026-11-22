@@ -56,3 +56,11 @@ sfjs_200_500_1_edata,29711,600.0,results/gpu/flex_sfjs_rx_10min
 sfjs_200_500_1_rdata,27675,600.0,results/optalcp/flex_sfjs_10min
 sfjs_200_700_1_edata,40073,600.0,results/gpu/flex_sfjs_rx_10min
 sfjs_200_700_1_rdata,37791,600.0,results/optalcp/flex_sfjs_10min
+sfjs_100_50_1_edata,5365,120,results/gpu/flex_sfjs_rect_ref
+sfjs_150_100_1_edata,9210,120,results/gpu/flex_sfjs_rect_ref
+sfjs_200_100_1_edata,11230,120,results/gpu/flex_sfjs_rect_ref
+sfjs_200_50_1_edata,10202,120,results/gpu/flex_sfjs_rect_ref
+sfjs_300_100_1_edata,15683,120,results/gpu/flex_sfjs_rect_ref
+sfjs_500_100_1_edata,25725,120,results/gpu/flex_sfjs_rect_ref
+sfjs_150_100_1_rdata,8017,120,results/gpu/flex_sfjs_rect_ref
+sfjs_200_100_1_rdata,10263,120,results/gpu/flex_sfjs_rect_ref

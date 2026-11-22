@@ -186,8 +186,9 @@ async function siteSfjs(v, rows) {
     + `<span class="fsum">${d.instances} instances · ${d.files.filter(f => have.has(f.name)).length} with a schedule below</span></div>`
     + `<p class="lead">Our own instances for measuring solvers across sizes and shapes: instances of our job shop scaling `
     + `set (SJS, see the job shop tab) with machine options per operation in the manner of Hurink, Jurisch and Thole's `
-    + `edata and rdata sets, from 2,500 to 490,000 operations. Version 2: the 84 instances that two trivial lower bounds `
-    + `(the longest job, and all work divided by the machines) do not close; version 1 also had high-flexibility and `
+    + `edata and rdata sets, from 2,500 to 490,000 operations. Version 3: the 108 instances that two trivial lower bounds `
+    + `(the longest job, and all work divided by the machines) do not close, 24 of them on sizes with more jobs than `
+    + `machines, added on 2026-11-22; version 1 also had high-flexibility and `
     + `machine-rich instances, which those bounds solve. The .fjs format as above (gzip-compressed from `
     + `50,000 operations).</p>`
     + `<p class="lead"><b>How the comparison with OptalCP is run.</b> Both solvers get the same wall-clock time on the `
@@ -196,7 +197,7 @@ async function siteSfjs(v, rows) {
     + `2026.11.0 (preview edition) with its default search settings, 600 s and 12 threads on an AMD Ryzen 7 5700X. `
     + `There is one run per instance and solver, so differences below about 2 % are within what another seed can `
     + `change. The instances are our own, and OptalCP was not tuned for them. A row is marked `
-    + `"below OptalCP" where our schedule is shorter than OptalCP's, "above OptalCP" where OptalCP's is shorter.</p><p class="links"><a href="sfjs/sfjs_v2.csv" download>instance list with bounds</a> · `
+    + `"below OptalCP" where our schedule is shorter than OptalCP's, "above OptalCP" where OptalCP's is shorter.</p><p class="links"><a href="sfjs/sfjs_v3.csv" download>instance list with bounds</a> · `
     + `<a href="sfjs/sfjs_seeds.csv" download>seeds</a> · <a href="sfjs/checksums.sha256" download>checksums</a> · `
     + `<a href="sfjs/README.md">README</a></p></section>`;
   if (first) first.insertAdjacentHTML("beforebegin", intro); else box.innerHTML = intro;
@@ -231,8 +232,8 @@ async function siteSdd(v) {
     + `flexible job shop · no schedules yet</span></div>`
     + `<p class="lead">The base instances are instance 1 of every size of our two scaling sets (SJS on the job shop `
     + `tab, SFJS edata and rdata on the flexible job shop tab), unchanged, each with due dates at four levels of `
-    + `tightness, from 2,500 to 490,000 operations. Version 2 adds ten job shop sizes with more jobs than machines `
-    + `(100 to 500 jobs on 20, 50 and 100 machines).</p>`
+    + `tightness, from 2,500 to 490,000 operations. Version 2 adds sizes with more jobs than machines: ten for the `
+    + `job shop (100 to 500 jobs on 20, 50 and 100 machines) and the eight of them the flexible set lists.</p>`
     + `<p class="lead"><b>Due dates and weights.</b> With p the work of a job (every operation at its shortest `
     + `duration) and H the reference makespan of the base instance, a makespan a search found, frozen with this `
     + `version: due = p + floor(tau × (H − p)). At tau 0.5 (+dd50) nearly every job is late, 0.7 (+dd70) is medium, `
