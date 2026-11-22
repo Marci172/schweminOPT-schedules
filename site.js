@@ -125,7 +125,8 @@ async function siteIndex(v) {
     }
     document.getElementById("count").textContent = `${shown} of ${rows.length}`;
   };
-  if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows); else siteSjs(v);
+  if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows).then(() => siteSdd(v, "flexible_jobshop"));
+  else siteSjs(v).then(() => siteSdd(v, "jobshop"));
   document.getElementById("q").addEventListener("input", e => { st.q = e.target.value; fill(); });
   document.getElementById("ver").addEventListener("change", e => { st.ver = e.target.value; fill(); });
   for (const c of cards) c.el.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
@@ -204,6 +205,52 @@ async function siteSfjs(v, rows) {
       + `<span class="fsum">${files.length} instance${files.length > 1 ? "s" : ""} · ${KIND[k]}</span></div>`
       + `<div class="tbox"><table class="sjst"><thead><tr><th>instance</th><th class="n">operations</th>`
       + `<th class="n">trivial lower bound</th><th>download</th></tr></thead>`
+      + `<tbody>${body}</tbody></table></div></section>`);
+  }
+}
+
+// ---------------------------------------------------------------- SDD: our due date set (downloads only)
+// (below the scaling set of the tab: an introduction card, then the tab's base instances with their four levels)
+async function siteSdd(v, problem) {
+  let d;
+  try { d = await (await fetch(`data/sdd.json?v=${v}`)).json(); } catch (e) { return; }
+  const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+  const bases = d.bases.filter(b => b.problem === problem);
+  if (!bases.length) return;
+  const flex = problem === "flexible_jobshop";
+  const box = document.getElementById("sjs");
+  box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>schweminOPT Due Date Scaling set (SDD, 2026)</h2>`
+    + `<span class="fsum">${d.instances} instances · ${bases.length * 4} ${flex ? "with machine choice" : "without machine choice"} `
+    + `· no schedules yet</span></div>`
+    + `<p class="lead">Our own instances for the total weighted tardiness: the sum over the jobs of weight × `
+    + `max(0, end of the job − due date). The base instances are instance 1 of every size of our scaling sets `
+    + `(${flex ? "here SFJS, edata and rdata; the job shop tab has the ones without machine choice"
+              : "here SJS; the flexible job shop tab has the ones with machine choice"}), unchanged, each with due dates `
+    + `at four levels of tightness.</p>`
+    + `<p class="lead"><b>Due dates and weights.</b> With p the work of a job (every operation at its shortest `
+    + `duration) and H the reference makespan of the base instance, a makespan a search found, frozen with this `
+    + `version: due = p + floor(tau × (H − p)). At tau 0.5 (+dd50) nearly every job is late, 0.7 (+dd70) is medium, `
+    + `0.9 (+dd90) loose; at 1.05 (+dd105) a schedule without a late job exists, so the optimum is 0. The first 20 % `
+    + `of the jobs weigh 4, the next 60 % 2, the last 20 % 1 (Singer and Pinedo). No release dates.</p>`
+    + `<p class="lead"><b>Format.</b> An instance is its base file (the "base" download, unchanged) plus one JSON file `
+    + `per level with the due date and the weight of every job, in the order of the base file.</p>`
+    + `<p class="links"><a href="sdd/SDD2026.zip" download>all due dates (zip, ${mb(d.zip_bytes)})</a> · `
+    + `<a href="sdd/sdd.csv" download>instance list</a> · <a href="sdd/reference_makespans.csv" download>reference makespans</a> · `
+    + `<a href="sdd/checksums.sha256" download>checksums</a> · <a href="sdd/README.md">README</a></p></section>`);
+  const groups = flex ? [["edata", "1.15 machines per operation on average"], ["rdata", "2 machines per operation on average"]]
+                      : [["", ""]];
+  for (const [k, note] of groups) {
+    const mine = bases.filter(b => b.kind === k);
+    if (!mine.length) continue;
+    const body = mine.map(b =>
+      `<tr><td>${esc(b.base)}<div class="sub">${b.jobs} × ${b.machines}</div></td>`
+      + `<td class="n">${num(b.operations)}</td><td class="n">${num(b.reference_makespan)}</td>`
+      + `<td class="dl">${b.levels.map(l => `<a href="${esc(l.file)}" download title="${esc(l.name)}">+dd${l.level}</a>`).join(" · ")}`
+      + `<div class="sub"><a href="${esc(b.base_file)}" download>base instance</a></div></td></tr>`).join("");
+    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>SDD · ${flex ? k : "job shop"}</h2>`
+      + `<span class="fsum">${mine.length * 4} instances · ${mine.length} base instances × 4 levels${note ? " · " + note : ""}</span></div>`
+      + `<div class="tbox"><table class="sjst sddt"><thead><tr><th>base instance</th><th class="n">operations</th>`
+      + `<th class="n">reference makespan</th><th>due dates</th></tr></thead>`
       + `<tbody>${body}</tbody></table></div></section>`);
   }
 }

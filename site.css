@@ -50,6 +50,7 @@ footer { color:var(--muted); font-size:.82rem; }
 .links { margin:0; font-size:.9rem; }
 .sjst { table-layout:fixed; } .sjst th:nth-child(1) { width:40%; } .sjst th:nth-child(2) { width:20%; }
 .sjst th:nth-child(3) { width:22%; } .sjst th .sub { font-size:.65rem; text-transform:none; letter-spacing:0; }
+.sddt th:nth-child(1) { width:32%; } .sddt th:nth-child(2) { width:16%; } .sddt th:nth-child(3) { width:20%; }
 .tabs { display:flex; gap:6px; margin:12px 0 2px; border-bottom:1px solid var(--line); }
 .tabs a { padding:7px 16px; border:1px solid transparent; border-bottom:none; border-radius:8px 8px 0 0; text-decoration:none;
   color:var(--fg2); font-weight:600; margin-bottom:-1px; }
