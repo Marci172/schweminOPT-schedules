@@ -12,9 +12,10 @@ const verdict = r => { const v = VERDICT[r.verdict]; if (!v) return ["", r.ref_f
   return r.ref ? [v[0], { improves: "below OptalCP", equals: "equal to OptalCP", above: "above OptalCP" }[v[0]]] : v; };
 const PROBLEM = (p => p === "fjsp" || p === "fjsps" || p === "dd" ? p : "jsp")(new URLSearchParams(location.search).get("p"));
 const SETUPS = PROBLEM === "fjsps";  // (flexible job shop with sequence-dependent setup times: its own tab and data)
-const DUE = PROBLEM === "dd";  // (the due date set: its own tab, downloads only, no result index)
-const INDEX = { jsp: "index", fjsp: "fjsp_index", fjsps: "fjsps_index" }[PROBLEM];
-const DATA = { jsp: "", fjsp: "fjsp/", fjsps: "fjsps/" }[PROBLEM];
+const DUE = PROBLEM === "dd";  // (job shop with due dates, total weighted tardiness: its own tab and data)
+const ONE = PROBLEM === "fjsp" || PROBLEM === "fjsps";  // (.fjs instances: machines numbered from 1)
+const INDEX = { jsp: "index", fjsp: "fjsp_index", fjsps: "fjsps_index", dd: "dd_index" }[PROBLEM];
+const DATA = { jsp: "", fjsp: "fjsp/", fjsps: "fjsps/", dd: "dd/" }[PROBLEM];
 const LEAD = {
   jsp: `For every instance, the best schedule our GPU solvers have found. Each one is checked independently against
   ScheduleOpt's instance file (job order, machine capacity, makespan recomputed from the machine sequences) and compared with
@@ -36,8 +37,13 @@ const LEAD = {
   There are no literature values for these instances; the schedules are compared with a run of OptalCP on the same
   instance at equal time. Click an instance for its Gantt chart. An instance is its .fjs file plus its setup times
   (JSON); schedules download as JSON with the machine and the start time of every operation, job by job.`,
-  dd: `Job shop and flexible job shop instances with due dates, for the total weighted tardiness: the sum over the
-  jobs of weight × max(0, end of the job − due date). The instances are our own; there are no schedules here yet.` };
+  dd: `Job shop instances with due dates, for the total weighted tardiness: the sum over the jobs of weight ×
+  max(0, end of the job − due date). For every instance, the best schedule our GPU solver has found. Each schedule is
+  checked independently against the instance file and its due dates (job order, machine capacity, total weighted
+  tardiness recomputed from the start times). The instances are our own and have no literature values; the schedules
+  are compared with a run of OptalCP on the same instance at equal time. Click an instance for its Gantt chart. An
+  instance is its base file plus its due dates and weights (JSON); schedules download as JSON with the start time of
+  every operation, job by job. The flexible job shop instances of the set have no schedules yet.` };
 
 // ---------------------------------------------------------------- index page
 // (v: the build stamp, appended to every data URL: GitHub Pages lets browsers cache files for 10 minutes, and old data
@@ -48,22 +54,17 @@ async function siteIndex(v) {
   document.getElementById("h1").textContent = { jsp: "schweminOPT best job shop schedules",
     fjsp: "schweminOPT best flexible job shop schedules",
     fjsps: "schweminOPT best flexible job shop schedules with setup times",
-    dd: "schweminOPT due date instances" }[PROBLEM];
-  if (DUE) {
-    document.getElementById("lead").textContent = LEAD.dd.replace(/\s+/g, " ");
-    document.getElementById("tiles").style.display = "none";
-    document.querySelector(".tools").style.display = "none";
-    return siteSdd(v);
-  }
+    dd: "schweminOPT best job shop schedules with due dates" }[PROBLEM];
   document.getElementById("lead").textContent = LEAD[PROBLEM].replace(/\s+/g, " ");
   const data = await (await fetch(`data/${INDEX}.json?v=${v}`)).json();
   const rows = data.rows;
   const lit = rows.filter(r => !r.ref && r.ub != null), own = rows.filter(r => !(!r.ref && r.ub != null));
   const cnt = k => lit.filter(r => VERDICT[r.verdict] && VERDICT[r.verdict][0] === k).length;
   const vs = k => rows.filter(r => verdict(r)[0] === k).length;
-  document.getElementById("tiles").innerHTML = (SETUPS
+  document.getElementById("tiles").innerHTML = (SETUPS || DUE
     ? [["instances", rows.length], ["below OptalCP", vs("improves")], ["equal to OptalCP", vs("equals")],
-       ["above OptalCP", vs("above")], ["no OptalCP solution", rows.filter(r => r.ref_failed).length]]
+       ["above OptalCP", vs("above")]].concat(DUE ? [["without a late job", rows.filter(r => r.objective === 0).length]]
+        : [["no OptalCP solution", rows.filter(r => r.ref_failed).length]])
     : [["instances", rows.length], ["below best known", cnt("improves")],
        ["equal to best known", cnt("equals")], ["above best known", cnt("above")]]
       .concat(own.length ? [["scaling set schedules", own.length]] : []))
@@ -74,12 +75,16 @@ async function siteIndex(v) {
                  "Brandimarte", "Chambers, Barnes", "Dauzère-Pérès, Paulli", "Behnke, Geiger", "Fattahi, Mehrabad, Jolai",
                  "Kacem, Hammadi, Borne", "Hurink, Jurisch, Thole · sdata", "Hurink, Jurisch, Thole · edata",
                  "Hurink, Jurisch, Thole · rdata", "Hurink, Jurisch, Thole · vdata", "SFJS · edata", "SFJS · rdata", "SFJS · vdata",
-                 "SFJS with setup times · edata", "SFJS with setup times · rdata"];
+                 "SFJS with setup times · edata", "SFJS with setup times · rdata",
+                 "Job shop with due dates · Squares below 100 x 100", "Job shop with due dates · Squares above 100 x 100",
+                 "Job shop with due dates · Shapes", "Job shop with due dates · More jobs than machines",
+                 "Job shop with due dates · Wide processing times (1..1000)"];
   const fams = [...new Set(rows.map(r => r.family))]
     .sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
   document.getElementById("foot").insertAdjacentHTML("beforeend", ` Generated ${esc(data.generated)}.`);
   // (two lines per cell, so everything fits without scrolling sideways; a header sorts by its cell's first line)
-  const cols = [["instance", "instance", ""], ["makespan", "makespan", "n"], ["gap", "result", ""],
+  const cols = [["instance", "instance", ""], DUE ? ["objective", "weighted tardiness", "n"] : ["makespan", "makespan", "n"],
+                ["gap", "result", ""],
                 ["time_to_best", "time to best", "n"], ["system", "run", ""], ["date", "date", ""]];
   const st = { q: "", ver: "" };
   const box = document.getElementById("fams");
@@ -102,8 +107,17 @@ async function siteIndex(v) {
     const surl = r.solution_url || `solutions/${encodeURIComponent(r.instance)}.json`;
     const refl = r.ref ? `<span title="${esc(r.ref)}">OptalCP</span>` : "best known";
     const gap = r.gap == null ? "–" : (r.gap > 0 ? "+" : "") + r.gap.toFixed(2) + " %";
-    const tt = r.time_exact ? "when the run first reached this makespan"
+    const tt = r.time_exact ? "when the run first reached this value"
                             : "first checkpoint of the run that shows it (the exact time was not recorded)";
+    if (DUE) return `<tr><td>${name}<div class="sub">${r.jobs} × ${r.machines} · tau ${r.tau.toFixed(2)}</div></td>`
+      + `<td class="n">${num(r.objective)}<div class="sub">${refl} ${num(r.ub)} · LB ${num(r.lb)}</div></td>`
+      + `<td><span class="chip ${cls}">${label}</span><div class="sub">${r.gap == null ? "" : gap + " · "}${r.late_jobs} of ${r.jobs} jobs late</div></td>`
+      + `<td class="n" title="${tt}">${secs(r.time_to_best, r.time_exact)}<div class="sub">of ${secs(r.run_seconds, true)}</div></td>`
+      + `<td title="${esc(r.system)}&#10;${esc(r.solver)}">${esc(gpuName(r.system))}<div class="sub">${esc(r.solver_short || r.solver)}</div></td>`
+      + `<td>${esc(r.date)}</td>`
+      + `<td class="dl"><a href="${esc(surl)}" download title="start time of every operation, job by job">schedule</a>`
+      + `<div class="sub"><a href="${esc(r.instance_url)}" download title="due date and weight of every job, in the order of the base instance">due dates</a>`
+      + ` · <a href="${esc(r.base_url)}" download title="the base instance: jobs and machines, then per job machine / duration pairs (machines from 0)">base</a></div></td></tr>`;
     return `<tr><td>${name}<div class="sub">${r.jobs} × ${r.machines}${F ? ` · ${num(r.operations)} ops` : ""}</div></td>`
       + `<td class="n">${num(r.makespan)}<div class="sub">${refl} ${num(r.ub)} · LB ${num(r.lb)}</div></td>`
       + `<td><span class="chip ${cls}">${label}</span><div class="sub">gap ${gap}</div></td>`
@@ -135,7 +149,7 @@ async function siteIndex(v) {
     }
     document.getElementById("count").textContent = `${shown} of ${rows.length}`;
   };
-  if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows); else siteSjs(v);
+  if (DUE) siteSdd(v, rows); else if (SETUPS) siteSetups(); else if (F) siteSfjs(v, rows); else siteSjs(v);
   document.getElementById("q").addEventListener("input", e => { st.q = e.target.value; fill(); });
   document.getElementById("ver").addEventListener("change", e => { st.ver = e.target.value; fill(); });
   for (const c of cards) c.el.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
@@ -219,17 +233,19 @@ async function siteSfjs(v, rows) {
   }
 }
 
-// ---------------------------------------------------------------- SDD: our due date set (its own tab, downloads only)
-// (an introduction card, then the base instances with their four levels: job shop, then the two flexible kinds)
-async function siteSdd(v) {
+// ---------------------------------------------------------------- SDD: our due date set (its own tab)
+// (an introduction card above the result tables, then the instances without a schedule: job shop, the two flexible kinds)
+async function siteSdd(v, rows) {
   let d;
   try { d = await (await fetch(`data/sdd.json?v=${v}`)).json(); } catch (e) { return; }
   const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
   const count = p => d.bases.filter(b => b.problem === p).length * 4;
+  const have = new Set(rows.map(r => r.instance));
   const box = document.getElementById("sjs");
-  box.innerHTML = `<section class="card"><div class="fhead"><h2>schweminOPT Due Date Scaling set (SDD, 2026)</h2>`
+  const first = document.querySelector("#fams .fam");
+  const intro = `<section class="card"><div class="fhead"><h2>schweminOPT Due Date Scaling set (SDD, 2026)</h2>`
     + `<span class="fsum">${d.instances} instances · ${count("jobshop")} job shop, ${count("flexible_jobshop")} `
-    + `flexible job shop · no schedules yet</span></div>`
+    + `flexible job shop · ${have.size} with a schedule below</span></div>`
     + `<p class="lead">The base instances are instance 1 of every size of our two scaling sets (SJS on the job shop `
     + `tab, SFJS edata and rdata on the flexible job shop tab), unchanged, each with due dates at four levels of `
     + `tightness, from 2,500 to 490,000 operations. Version 2 adds sizes with more jobs than machines: ten for the `
@@ -241,22 +257,36 @@ async function siteSdd(v) {
     + `of the jobs weigh 4, the next 60 % 2, the last 20 % 1 (Singer and Pinedo). No release dates.</p>`
     + `<p class="lead"><b>Format.</b> An instance is its base file (the "base instance" download, unchanged) plus a `
     + `JSON file with the due date and the weight of every job, in the order of the base file.</p>`
+    + `<p class="lead"><b>How the comparison with OptalCP is run.</b> Both solvers get the same model and the same `
+    + `wall-clock time on the same desktop PC: one run of the GPU solver, 600 s on an AMD Radeon RX 6700 XT, and one `
+    + `run of OptalCP 2026.11.0 (preview edition) with its default search settings, 600 s and 12 threads on an AMD `
+    + `Ryzen 7 5700X. Either solver stops early at the value 0. On about half of the instances the two ran at the same `
+    + `time; on the others OptalCP's run is from an earlier day. There is one run per instance and solver, so small `
+    + `differences are within what another seed can change. The instances are our own, and OptalCP was not tuned `
+    + `for them. A row is marked "below OptalCP" where our schedule's weighted tardiness is lower than OptalCP's, `
+    + `"above OptalCP" where OptalCP's is lower; the gap is (ours − OptalCP's) / OptalCP's and is left out where `
+    + `OptalCP's value is 0. Job shop sizes from 200 × 300 upwards and the flexible instances have no schedule `
+    + `here: the GPU solver's due date search does not cover them yet. In a Gantt chart the operations of late jobs `
+    + `are highlighted.</p>`
     + `<p class="links"><a href="sdd/SDD2026.zip" download>all due dates (zip, ${mb(d.zip_bytes)})</a> · `
     + `<a href="sdd/sdd.csv" download>instance list</a> · <a href="sdd/reference_makespans.csv" download>reference makespans</a> · `
     + `<a href="sdd/checksums.sha256" download>checksums</a> · <a href="sdd/README.md">README</a></p></section>`;
+  if (first) first.insertAdjacentHTML("beforebegin", intro); else box.innerHTML = intro;
   const groups = [["jobshop", "", "Job shop", ""],
                   ["flexible_jobshop", "edata", "Flexible job shop · edata", "1.15 machines per operation on average"],
                   ["flexible_jobshop", "rdata", "Flexible job shop · rdata", "2 machines per operation on average"]];
   for (const [p, k, title, note] of groups) {
-    const mine = d.bases.filter(b => b.problem === p && b.kind === k);
+    const mine = d.bases.filter(b => b.problem === p && b.kind === k)
+      .map(b => ({ ...b, levels: b.levels.filter(l => !have.has(l.name)) })).filter(b => b.levels.length);  // (a result row has the downloads)
     if (!mine.length) continue;
+    const n = mine.reduce((a, b) => a + b.levels.length, 0);
     const body = mine.flatMap(b => b.levels.map(l =>
       `<tr><td>${esc(l.name)}<div class="sub">${b.jobs} × ${b.machines} · tau ${(l.level / 100).toFixed(2)}</div></td>`
       + `<td class="n">${num(b.operations)}</td><td class="n">${num(b.reference_makespan)}</td>`
       + `<td class="dl"><a href="${esc(l.file)}" download>due dates</a>`
       + `<div class="sub"><a href="${esc(b.base_file)}" download>base instance</a></div></td></tr>`)).join("");
-    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>${title}</h2>`
-      + `<span class="fsum">${mine.length * 4} instances · ${mine.length} base instances × 4 levels${note ? " · " + note : ""}</span></div>`
+    box.insertAdjacentHTML("beforeend", `<section class="card"><div class="fhead"><h2>${title}, without a schedule yet</h2>`
+      + `<span class="fsum">${n} instance${n > 1 ? "s" : ""} · ${mine.length} base instance${mine.length > 1 ? "s" : ""}${note ? " · " + note : ""}</span></div>`
       + `<div class="tbox"><table class="sjst"><thead><tr><th>instance</th><th class="n">operations</th>`
       + `<th class="n">reference makespan</th><th>download</th></tr></thead>`
       + `<tbody>${body}</tbody></table></div></section>`);
@@ -299,13 +329,21 @@ async function siteSchedule(v) {
   document.getElementById("title").innerHTML = `${esc(d.instance)} <span class="chip ${cls}" style="font-size:.8rem;vertical-align:middle">${label}</span>`;
   document.getElementById("sub").textContent = `${d.solver}. System: ${d.system}.${d.date ? " Run of " + d.date + "." : ""}`;
   const crit = d.ops.reduce((n, o) => n + o[5], 0);
-  document.getElementById("info").innerHTML = [`makespan ${num(d.makespan)}`, d.ref_failed ? `${d.ref}: no solution` : `${d.ref ? d.ref : "best known"} ${num(d.ub)}`, `lower bound ${num(d.lb)}`,
+  if (DUE) document.getElementById("lcrit").textContent = "operation of a late job";
+  document.getElementById("info").innerHTML = (DUE ? [`weighted tardiness ${num(d.objective)}`,
+    `${d.ref} ${num(d.ub)}`, `lower bound ${num(d.lb)}`, d.gap == null ? "" : `gap ${(d.gap > 0 ? "+" : "") + d.gap.toFixed(2)} %`,
+    `${d.late_jobs} of ${d.jobs} jobs late`, `makespan ${num(d.makespan)}`, `tau ${d.tau.toFixed(2)}`,
+    `time to best ${secs(d.time_to_best, d.time_exact)}`, `run ${secs(d.run_seconds, true)}`, `${d.jobs} jobs × ${d.machines} machines`,
+    `${num(d.operations)} operations`,
+    `<a href="${esc(d.instance_url)}" download>due dates and weights</a>`, `<a href="${esc(d.base_url)}" download>base instance (.txt)</a>`,
+    `<a href="${esc(d.solution_url)}" download>schedule (start per operation)</a>`]
+    : [`makespan ${num(d.makespan)}`, d.ref_failed ? `${d.ref}: no solution` : `${d.ref ? d.ref : "best known"} ${num(d.ub)}`, `lower bound ${num(d.lb)}`,
     d.gap == null ? "" : `gap ${(d.gap > 0 ? "+" : "") + d.gap.toFixed(2)} %`,
     `time to best ${secs(d.time_to_best, d.time_exact)}`, `run ${secs(d.run_seconds, true)}`, `${d.jobs} jobs × ${d.machines} machines`,
     `${num(d.operations)} operations`, d.options ? `${num(d.options)} machine options` : "", `${num(crit)} critical`,
     `<a href="${esc(d.instance_url || `instances/${encodeURIComponent(d.instance)}.txt`)}" download>instance (${F ? ".fjs" : ".txt"})</a>`,
     d.setup_url ? `<a href="${esc(d.setup_url)}" download>setup times (one point per job)</a>` : "",
-    `<a href="${esc(d.solution_url || `solutions/${encodeURIComponent(d.instance)}.json`)}" download>schedule (${F ? "machine and start per operation" : "ScheduleOpt format"})</a>`]
+    `<a href="${esc(d.solution_url || `solutions/${encodeURIComponent(d.instance)}.json`)}" download>schedule (${F ? "machine and start per operation" : "ScheduleOpt format"})</a>`])
     .filter(Boolean).map(x => `<span>${x.startsWith("<a") ? x : esc(x)}</span>`).join("");
   const G = { job: null, bars: [] };
   const cv = document.getElementById("gc"), box = document.getElementById("gbox"), tip = document.getElementById("tip");
@@ -325,7 +363,7 @@ async function siteSchedule(v) {
       ctx.textAlign = "center"; ctx.fillText(t.toLocaleString("en-US"), x(t), 11);
     }
     ctx.textAlign = "right";
-    for (let m = 0, every = Math.ceil(12 / rowH); m < d.machines; m += every) ctx.fillText("M" + (m + (F ? 1 : 0)), left - 6, top + m * rowH + rowH / 2);
+    for (let m = 0, every = Math.ceil(12 / rowH); m < d.machines; m += every) ctx.fillText("M" + (m + (ONE ? 1 : 0)), left - 6, top + m * rowH + rowH / 2);
     G.bars = [];
     const pad = rowH > 10 ? 2 : rowH > 6 ? 1 : 0;
     for (const o of d.ops) {
@@ -350,7 +388,10 @@ async function siteSchedule(v) {
   cv.addEventListener("mousemove", e => {
     const o = at(e); if (!o) { tip.hidden = true; return; }
     const [j, k, m, s, du, c] = o;
-    tip.textContent = `job ${j}, operation ${k}\nmachine ${m + (F ? 1 : 0)}\n${s} – ${s + du} (duration ${du})${c ? "\ncritical" : ""}`;
+    const jobLine = !DUE ? "" : `\njob ends ${d.ends[j]}, due ${d.due[j]}, weight ${d.weights[j]}`
+      + (d.ends[j] > d.due[j] ? `\nlate by ${d.ends[j] - d.due[j]}` : "\non time");
+    tip.textContent = `job ${j}, operation ${k}\nmachine ${m + (ONE ? 1 : 0)}\n${s} – ${s + du} (duration ${du})`
+      + (DUE ? jobLine : c ? "\ncritical" : "");
     tip.hidden = false; tip.style.left = (e.clientX + 14) + "px"; tip.style.top = (e.clientY + 12) + "px";
   });
   cv.addEventListener("mouseleave", () => { tip.hidden = true; });
