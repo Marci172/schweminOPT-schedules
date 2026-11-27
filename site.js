@@ -8,6 +8,8 @@ const VERDICT = { "improves the best known value": ["improves", "below best know
                   "equals the best known value": ["equals", "best known"],
                   "above the best known value": ["above", "above best known"] };
 // (rows with a reference other than a best known value, r.ref: our scaling set against OptalCP's run)
+// (how tight the due dates are: the factor on a job's work for literature instances, tau for our set)
+const tight = r => r.factor ? "factor " + r.factor : "tau " + r.tau.toFixed(2);
 const verdict = r => { const v = VERDICT[r.verdict]; if (!v) return ["", r.ref_failed ? "no OptalCP solution" : "–"];
   return r.ref ? [v[0], { improves: "below OptalCP", equals: "equal to OptalCP", above: "above OptalCP" }[v[0]]] : v; };
 const PROBLEM = (p => p === "fjsp" || p === "fjsps" || p === "dd" ? p : "jsp")(new URLSearchParams(location.search).get("p"));
@@ -40,8 +42,9 @@ const LEAD = {
   dd: `Job shop instances with due dates, for the total weighted tardiness: the sum over the jobs of weight ×
   max(0, end of the job − due date). For every instance, the best schedule our GPU solver has found. Each schedule is
   checked independently against the instance file and its due dates (job order, machine capacity, total weighted
-  tardiness recomputed from the start times). The instances are our own and have no literature values; the schedules
-  are compared with a run of OptalCP on the same instance at equal time. Click an instance for its Gantt chart. An
+  tardiness recomputed from the start times). Our own instances have no literature values; their schedules are
+  compared with a run of OptalCP on the same instance at equal time. The literature's instances (Lawrence's, first
+  below) are compared with the best known values. Click an instance for its Gantt chart. An
   instance is its base file plus its due dates and weights (JSON); schedules download as JSON with the start time of
   every operation, job by job. The flexible job shop instances of the set have no schedules yet.` };
 
@@ -62,8 +65,10 @@ async function siteIndex(v) {
   const cnt = k => lit.filter(r => VERDICT[r.verdict] && VERDICT[r.verdict][0] === k).length;
   const vs = k => rows.filter(r => verdict(r)[0] === k).length;
   document.getElementById("tiles").innerHTML = (SETUPS || DUE
-    ? [["instances", rows.length], ["below OptalCP", vs("improves")], ["equal to OptalCP", vs("equals")],
-       ["above OptalCP", vs("above")]].concat(DUE ? [["without a late job", rows.filter(r => r.objective === 0).length]]
+    ? [["instances", rows.length], [DUE ? "below the reference" : "below OptalCP", vs("improves")],
+       [DUE ? "equal to the reference" : "equal to OptalCP", vs("equals")],
+       [DUE ? "above the reference" : "above OptalCP", vs("above")]]
+        .concat(DUE ? [["without a late job", rows.filter(r => r.objective === 0).length]]
         : [["no OptalCP solution", rows.filter(r => r.ref_failed).length]])
     : [["instances", rows.length], ["below best known", cnt("improves")],
        ["equal to best known", cnt("equals")], ["above best known", cnt("above")]]
@@ -76,6 +81,7 @@ async function siteIndex(v) {
                  "Kacem, Hammadi, Borne", "Hurink, Jurisch, Thole · sdata", "Hurink, Jurisch, Thole · edata",
                  "Hurink, Jurisch, Thole · rdata", "Hurink, Jurisch, Thole · vdata", "SFJS · edata", "SFJS · rdata", "SFJS · vdata",
                  "SFJS with setup times · edata", "SFJS with setup times · rdata",
+                 "Job shop with due dates · Lawrence's instances (literature: Essafi et al. 2008)",
                  "Job shop with due dates · Squares below 100 x 100", "Job shop with due dates · Squares above 100 x 100",
                  "Job shop with due dates · Shapes", "Job shop with due dates · More jobs than machines",
                  "Job shop with due dates · Wide processing times (1..1000)"];
@@ -109,8 +115,8 @@ async function siteIndex(v) {
     const gap = r.gap == null ? "–" : (r.gap > 0 ? "+" : "") + r.gap.toFixed(2) + " %";
     const tt = r.time_exact ? "when the run first reached this value"
                             : "first checkpoint of the run that shows it (the exact time was not recorded)";
-    if (DUE) return `<tr><td>${name}<div class="sub">${r.jobs} × ${r.machines} · tau ${r.tau.toFixed(2)}</div></td>`
-      + `<td class="n">${num(r.objective)}<div class="sub">${refl} ${num(r.ub)} · LB ${num(r.lb)}</div></td>`
+    if (DUE) return `<tr><td>${name}<div class="sub">${r.jobs} × ${r.machines} · ${tight(r)}</div></td>`
+      + `<td class="n">${num(r.objective)}<div class="sub"><span title="${esc(r.ub_source || "")}">${refl}</span> ${num(r.ub)} · LB ${num(r.lb)}</div></td>`
       + `<td><span class="chip ${cls}">${label}</span><div class="sub">${r.gap == null ? "" : gap + " · "}${r.late_jobs} of ${r.jobs} jobs late</div></td>`
       + `<td class="n" title="${tt}">${secs(r.time_to_best, r.time_exact)}<div class="sub">of ${secs(r.run_seconds, true)}</div></td>`
       + `<td title="${esc(r.system)}&#10;${esc(r.solver)}">${esc(gpuName(r.system))}<div class="sub">${esc(r.solver_short || r.solver)}</div></td>`
@@ -242,7 +248,8 @@ async function siteSdd(v, rows) {
   const count = p => d.bases.filter(b => b.problem === p).length * 4;
   const have = new Set(rows.map(r => r.instance));
   const box = document.getElementById("sjs");
-  const first = document.querySelector("#fams .fam");
+  // (the literature's set comes first, with its own introduction; this one stands above our set's first table)
+  const first = [...document.querySelectorAll("#fams .fam")].find(el => !el.querySelector("h2").textContent.includes("Lawrence"));
   const intro = `<section class="card"><div class="fhead"><h2>schweminOPT Due Date Scaling set (SDD, 2026)</h2>`
     + `<span class="fsum">${d.instances} instances · ${count("jobshop")} job shop, ${count("flexible_jobshop")} `
     + `flexible job shop · ${have.size} with a schedule below</span></div>`
@@ -272,6 +279,27 @@ async function siteSdd(v, rows) {
     + `<a href="sdd/sdd.csv" download>instance list</a> · <a href="sdd/reference_makespans.csv" download>reference makespans</a> · `
     + `<a href="sdd/checksums.sha256" download>checksums</a> · <a href="sdd/README.md">README</a></p></section>`;
   if (first) first.insertAdjacentHTML("beforebegin", intro); else box.innerHTML = intro;
+  const lit = rows.filter(r => r.factor);
+  const litCard = [...document.querySelectorAll("#fams .fam")].find(el => el.querySelector("h2").textContent.includes("Lawrence"));
+  if (litCard) {
+    const n = k => lit.filter(r => verdict(r)[0] === k).length;
+    litCard.insertAdjacentHTML("beforebegin", `<section class="card"><div class="fhead"><h2>The literature's set: `
+      + `Lawrence's instances with due dates</h2><span class="fsum">${lit.length} instances · ${n("improves")} below, `
+      + `${n("equals")} equal to, ${n("above")} above the best known value</span></div>`
+      + `<p class="lead">The largest set with published values for the job shop with total weighted tardiness: `
+      + `Lawrence's la01 to la40 (10 × 5 to 30 × 10 and 15 × 15) with the due dates and weights of Singer and Pinedo `
+      + `(1998), as used by Essafi, Mati and Dauzère-Pérès (2008). The due date of a job is floor(f × its total `
+      + `processing time) with f = 1.3, 1.5 or 1.6 (the suffix +wt1.3 and so on); the first 20 % of the jobs weigh 4, `
+      + `the next 60 % 2, the last 20 % 1. The base instances are the files of the job shop tab.</p>`
+      + `<p class="lead"><b>The reference.</b> "Best known" is the lowest value we know of: the best value published `
+      + `up to 2017 (table 8 of Bierwirth and Kuhpfahl, European Journal of Operational Research 261, 2017, which `
+      + `collects the earlier papers), or a lower value from our own runs of OptalCP 2026.11.0 (60 s and 300 s, 12 `
+      + `threads); hover over "best known" in a row for its source. The lower bound is OptalCP's, and equals the value `
+      + `where OptalCP proved it optimal. We have not checked every paper published since 2017, so a row marked `
+      + `"below best known" means below these references, not a confirmed record.</p>`
+      + `<p class="lead"><b>The runs.</b> One run of the GPU solver per instance on an AMD Radeon RX 6700 XT, 60 s, or `
+      + `300 s where the 60 s run stayed above the reference; the table shows the better checked schedule.</p></section>`);
+  }
   const groups = [["jobshop", "", "Job shop", ""],
                   ["flexible_jobshop", "edata", "Flexible job shop · edata", "1.15 machines per operation on average"],
                   ["flexible_jobshop", "rdata", "Flexible job shop · rdata", "2 machines per operation on average"]];
@@ -331,8 +359,9 @@ async function siteSchedule(v) {
   const crit = d.ops.reduce((n, o) => n + o[5], 0);
   if (DUE) document.getElementById("lcrit").textContent = "operation of a late job";
   document.getElementById("info").innerHTML = (DUE ? [`weighted tardiness ${num(d.objective)}`,
-    `${d.ref} ${num(d.ub)}`, `lower bound ${num(d.lb)}`, d.gap == null ? "" : `gap ${(d.gap > 0 ? "+" : "") + d.gap.toFixed(2)} %`,
-    `${d.late_jobs} of ${d.jobs} jobs late`, `makespan ${num(d.makespan)}`, `tau ${d.tau.toFixed(2)}`,
+    `${d.ref || "best known"} ${num(d.ub)}${d.ub_source ? " (" + esc(d.ub_source) + ")" : ""}`, `lower bound ${num(d.lb)}`,
+    d.gap == null ? "" : `gap ${(d.gap > 0 ? "+" : "") + d.gap.toFixed(2)} %`,
+    `${d.late_jobs} of ${d.jobs} jobs late`, `makespan ${num(d.makespan)}`, tight(d),
     `time to best ${secs(d.time_to_best, d.time_exact)}`, `run ${secs(d.run_seconds, true)}`, `${d.jobs} jobs × ${d.machines} machines`,
     `${num(d.operations)} operations`,
     `<a href="${esc(d.instance_url)}" download>due dates and weights</a>`, `<a href="${esc(d.base_url)}" download>base instance (.txt)</a>`,

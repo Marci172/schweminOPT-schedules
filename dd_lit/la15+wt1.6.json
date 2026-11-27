@@ -1,0 +1,1 @@
+{"instance":"la15+wt1.6","base":"la15","problem":"jobshop","objective":"total weighted tardiness","factor":1.6,"due":[292,347,500,304,368,505,344,561,456,438,347,328,604,604,537,473,302,452,416,526],"weights":[4,4,4,4,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1]}
